@@ -60,7 +60,7 @@ export default function ProfileSection({ user, profile }: ProfileSectionProps) {
           ...currentProfile,
           ...formData,
           updated_at: new Date().toISOString(),
-        };
+        } as import('@/lib/supabase').UserProfile;
         setCurrentProfile(updatedProfile);
         
         toast.success('Profile updated successfully! 🎉');
