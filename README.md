@@ -1,36 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AK Marketplace
+
+A modern, full-stack multi-category marketplace built with **Next.js 16**, **Supabase**, **Tailwind CSS v4**, and **Framer Motion**.
+
+> This is the modern rewrite of the AK Footwear Ecommerce project — expanded from a footwear store into a full marketplace covering footwear, apparel, accessories, and more.
+
+---
+
+## Tech Stack
+
+| Layer         | Technology                             |
+| ------------- | -------------------------------------- |
+| Framework     | Next.js 16.1.6 (App Router, Turbopack) |
+| Language      | TypeScript 5                           |
+| Styling       | Tailwind CSS v4                        |
+| Animation     | Framer Motion + GSAP                   |
+| Backend       | Supabase (PostgreSQL + Auth + Storage) |
+| State         | Zustand                                |
+| UI            | Lucide React + React Icons             |
+| Notifications | Sonner + React Hot Toast               |
+
+---
+
+## Features
+
+- Multi-category product catalog (Footwear, Apparel, Accessories, and more)
+- Full authentication — Email/Password + Google OAuth (Supabase Auth)
+- User profiles with avatar, address, and preferences
+- Shopping cart with persistent state (Zustand)
+- Product filtering, search, sort, and pagination
+- Dark / Light theme toggle
+- Animated hero slider and page transitions
+- Order history dashboard
+- Responsive — mobile-first design
+- Server Components + Client Components architecture
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/Ab-xo/Ak-Footwear-Ecommerce.git
+cd Ak-Footwear-Ecommerce
+git checkout feat/ak-marketplace-modern
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Set up environment variables
+
+Copy `.env.example` to `.env.local` and fill in your Supabase credentials:
+
+```bash
+cp .env.example .env.local
+```
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+### 4. Apply the database schema
+
+In your Supabase project's SQL Editor, run `complete-schema.sql` from the repo root.
+
+### 5. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+src/
+├── app/                  # Next.js App Router pages
+│   ├── page.tsx          # Home / landing
+│   ├── shop/             # Product catalog + detail
+│   ├── categories/       # Category browsing
+│   ├── account/          # User dashboard
+│   ├── auth/             # Sign in / sign up / OAuth callback
+│   ├── cart/             # Cart page
+│   ├── orders/           # Order history
+│   └── api/              # API route handlers
+├── components/
+│   ├── layout/           # Navbar, Footer, Hero
+│   ├── ui/               # ProductCard, ThemeToggle, etc.
+│   ├── cart/             # CartDrawer
+│   ├── account/          # Account dashboard components
+│   └── providers/        # ThemeProvider, SupabaseProvider
+├── lib/                  # Supabase clients (browser + server)
+├── store/                # Zustand stores (cart)
+├── types/                # TypeScript types
+└── utils/                # Supabase fetch helpers
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Branch Strategy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Branch                       | Purpose                                       |
+| ---------------------------- | --------------------------------------------- |
+| `master`                     | Original AK Footwear (legacy)                 |
+| `feat/ak-marketplace-modern` | Modern full marketplace rewrite (this branch) |
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

@@ -39,3 +39,46 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Kiro agent artifacts
+.agents/
+
+# Temp dev/fix documentation (not part of the codebase)
+AUTH_SETUP_COMPLETE.md
+COMPLETED_FEATURES.md
+COMPLETE_FIX_GUIDE.md
+FEATURE_COMPARISON.md
+FINAL_SOLUTION_SUMMARY.md
+GOOGLE_DATA_EXTRACTION.md
+GOOGLE_OAUTH_PROFILE_FIX.md
+GOOGLE_OAUTH_SETUP.md
+HOW_TO_FIX_GOOGLE_SIGNIN.md
+IMPLEMENTATION_SUMMARY.md
+MIGRATION_PROGRESS.md
+PHASE_1_IMPLEMENTATION_GUIDE.md
+PROFILE_DROPDOWN_FIXES.md
+PROFILE_FIXES_COMPLETE.md
+QUICK-FIX.md
+QUICK_TEST_GUIDE.md
+SETUP-UPDATED.md
+SETUP.md
+SETUP_DATABASE.md
+SIGNOUT_IMPLEMENTATION.md
+USER_PROFILE_DROPDOWN.md
+CRITICAL_FIX_USER_PROFILES.sql
+fix-google-oauth-profile-creation.sql
+user-schema.sql
+supabase_schema.sql
+
+# Test / debug files
+create-test-user.js
+test-supabase-direct.html
+src/app/test-auth/
+src/app/test-user-profile/
+src/app/test-profile/
+
+# Workspace config
+*.code-workspace
+
+# Backup files
+*.backup
