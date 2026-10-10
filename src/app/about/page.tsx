@@ -96,13 +96,13 @@ const AboutPage = () => {
 
                         <div className="space-y-6 text-lg text-foreground/70 leading-relaxed font-medium">
                             <p>
-                                Welcome to <span className="text-foreground font-bold">Ak Brothers</span>, where every step is a statement of style and comfort.
+                                Welcome to <span className="text-foreground font-bold">AK Drop</span>, where every step is a statement of style and comfort.
                                 Our passion for footwear goes beyond trends; it&apos;s about curating a collection that
                                 reflects your individuality. Established in 2024, we&apos;ve been on a mission to redefine
                                 your shoe-shopping experience.
                             </p>
                             <p>
-                                At <span className="text-foreground font-bold">Ak Brothers</span>, we believe that each pair of shoes carries a unique story. Our
+                                At <span className="text-foreground font-bold">AK Drop</span>, we believe that each pair of shoes carries a unique story. Our
                                 carefully curated selection encompasses everything from casual kicks to sophisticated
                                 heels, ensuring that you can find the perfect pair for every occasion. Quality is our
                                 cornerstone.
@@ -131,7 +131,7 @@ const AboutPage = () => {
                                 Engaging in local events and supporting charitable initiatives.
                             </span>
                             <span className="text-sm font-black uppercase tracking-widest text-primary/60">
-                                We invite you to become a part of the Ak Brothers family.
+                                We invite you to become a part of the AK Drop family.
                             </span>
                         </div>
                     ))}

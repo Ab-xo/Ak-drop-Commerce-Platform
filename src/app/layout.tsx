@@ -19,9 +19,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AK Marketplace | Premium Multi-Category Store",
+  title: "AK Drop | Premium Streetwear & Sneaker Marketplace",
   description:
-    "AK Marketplace — your destination for premium footwear, apparel, accessories and more. Discover curated collections, exclusive drops, and fast delivery.",
+    "AK Drop — the home of premium sneakers, streetwear, and accessories. Exclusive drops, curated collections, and fast delivery.",
 };
 
 export default function RootLayout({

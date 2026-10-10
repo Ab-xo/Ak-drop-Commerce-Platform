@@ -1,8 +1,8 @@
-# AK Marketplace
+# AK Drop
 
-A modern, full-stack multi-category marketplace built with **Next.js 16**, **Supabase**, **Tailwind CSS v4**, and **Framer Motion**.
+> Premium sneakers, streetwear & accessories — exclusive drops, curated collections, delivered fast.
 
-> This is the modern rewrite of the AK Footwear Ecommerce project — expanded from a footwear store into a full marketplace covering footwear, apparel, accessories, and more.
+AK Drop is a modern full-stack marketplace built with **Next.js 16**, **Supabase**, **Tailwind CSS v4**, and **Framer Motion**. It is the modern rewrite of the AK Footwear Ecommerce project, expanded from a footwear store into a full multi-category drop culture marketplace.
 
 ---
 
@@ -23,13 +23,13 @@ A modern, full-stack multi-category marketplace built with **Next.js 16**, **Sup
 
 ## Features
 
-- Multi-category product catalog (Footwear, Apparel, Accessories, and more)
+- Multi-category catalog — Footwear, Apparel, Accessories, and more
 - Full authentication — Email/Password + Google OAuth (Supabase Auth)
 - User profiles with avatar, address, and preferences
 - Shopping cart with persistent state (Zustand)
 - Product filtering, search, sort, and pagination
 - Dark / Light theme toggle
-- Animated hero slider and page transitions
+- Animated hero slider (Framer Motion + GSAP) and page transitions
 - Order history dashboard
 - Responsive — mobile-first design
 - Server Components + Client Components architecture
@@ -38,12 +38,12 @@ A modern, full-stack multi-category marketplace built with **Next.js 16**, **Sup
 
 ## Getting Started
 
-### 1. Clone the repo
+### 1. Clone and checkout
 
 ```bash
 git clone https://github.com/Ab-xo/Ak-Footwear-Ecommerce.git
 cd Ak-Footwear-Ecommerce
-git checkout feat/ak-marketplace-modern
+git checkout feat/ak-drop
 ```
 
 ### 2. Install dependencies
@@ -53,8 +53,6 @@ npm install
 ```
 
 ### 3. Set up environment variables
-
-Copy `.env.example` to `.env.local` and fill in your Supabase credentials:
 
 ```bash
 cp .env.example .env.local
@@ -68,7 +66,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 ### 4. Apply the database schema
 
-In your Supabase project's SQL Editor, run `complete-schema.sql` from the repo root.
+Run `complete-schema.sql` in your Supabase project's SQL Editor.
 
 ### 5. Run the dev server
 
@@ -109,10 +107,10 @@ src/
 
 ## Branch Strategy
 
-| Branch                       | Purpose                                       |
-| ---------------------------- | --------------------------------------------- |
-| `master`                     | Original AK Footwear (legacy)                 |
-| `feat/ak-marketplace-modern` | Modern full marketplace rewrite (this branch) |
+| Branch         | Purpose                                                 |
+| -------------- | ------------------------------------------------------- |
+| `master`       | Original AK Footwear (legacy)                           |
+| `feat/ak-drop` | AK Drop — modern full marketplace rewrite (this branch) |
 
 ---
 

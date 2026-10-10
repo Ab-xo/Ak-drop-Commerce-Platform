@@ -162,7 +162,7 @@ const Navbar = () => {
                         </div>
                         <div className="w-px h-6 bg-border mx-3" />
                         <span className="text-xl font-semibold tracking-wide text-foreground/90 uppercase">
-                            ECOMM
+                            DROP
                         </span>
                     </div>
                 </Link>
