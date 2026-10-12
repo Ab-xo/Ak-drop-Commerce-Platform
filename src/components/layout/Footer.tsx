@@ -19,6 +19,8 @@ const socialLinks = [
   { icon: <FaTelegram  size={17} />, href: "https://t.me/akdrop",            label: "Telegram"  },
   { icon: <FaYoutube   size={17} />, href: "#",                              label: "YouTube"   },
 ];
+
+const shopLinks = [
   { label: "All products",       href: "/shop" },
   { label: "Shoes",              href: "/shop?category=shoes" },
   { label: "Shirts & apparel",   href: "/shop?category=clothing" },
