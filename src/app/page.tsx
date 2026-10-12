@@ -2,173 +2,40 @@
 
 import Hero from "@/components/layout/Hero";
 import ProductCard from "@/components/ui/ProductCard";
-import { ArrowRight, ShoppingBag, Zap, ShieldCheck } from "lucide-react";
+import { ArrowRight, ChevronRight, ShieldCheck, ShoppingBag, Sparkles, Truck, Zap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { getProducts, getNewArrivals } from "@/utils/supabaseFetch";
-import { Product } from "@/types";
+import { getCategories, getNewArrivals, getProducts } from "@/utils/supabaseFetch";
+import { Product, Category } from "@/types";
 
 export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [featured, arrivals] = await Promise.all([
-          getProducts('all', true, 4),
-          getNewArrivals(4)
-        ]);
-        setFeaturedProducts(featured);
-        setNewArrivals(arrivals);
-      } catch (error) {
-        console.error("Failed to load home data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
+    Promise.all([getProducts("all", true, 4), getNewArrivals(4), getCategories()])
+      .then(([featured, arrivals, loadedCategories]) => { setFeaturedProducts(featured); setNewArrivals(arrivals); setCategories(loadedCategories); })
+      .catch((error) => console.error("Failed to load home data:", error))
+      .finally(() => setLoading(false));
   }, []);
 
-  const categories = [
-    { name: "Footwear", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800", count: "120+ Items", href: "/shop?category=shoes" },
-    { name: "Apparel", image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=800", count: "80+ Items", href: "/shop?category=clothing" },
-    { name: "Accessories", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800", count: "45+ Items", href: "/shop?category=accessories" },
+  const fallbackCategories: Category[] = [
+    { id: "footwear", name: "Footwear", slug: "footwear", description: "Runners, court shoes, and statement silhouettes.", image_url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85" },
+    { id: "apparel", name: "Apparel", slug: "apparel", description: "Layers and essentials for everyday movement.", image_url: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=900&q=85" },
+    { id: "accessories", name: "Accessories", slug: "accessories", description: "The finishing details that make the fit.", image_url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85" },
+    { id: "travel", name: "Travel", slug: "travel", description: "Smart carry for work, weekends, and beyond.", image_url: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85" },
   ];
+  const visibleCategories = (categories.length ? categories : fallbackCategories).slice(0, 4);
 
-
-
-  return (
-    <div className="flex flex-col">
-      <Hero />
-
-
-
-      {/* Categories Grid */}
-      <section className="py-24 bg-background relative">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-end mb-16">
-            <div>
-              <h2 className="text-3xl md:text-5xl font-black mb-4 uppercase italic">SHOP BY <span className="text-primary">CATEGORY</span></h2>
-              <p className="text-foreground/80 font-bold uppercase tracking-tight">Find exactly what you&apos;re looking for in our specialized collections.</p>
-            </div>
-            <Link href="/categories" className="hidden md:flex items-center gap-2 font-bold text-sm text-primary hover:gap-3 transition-all uppercase tracking-widest">
-              VIEW ALL CATEGORIES <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {categories.map((cat, idx) => (
-              <Link
-                key={idx}
-                href={cat.href}
-                className="group relative h-[500px] overflow-hidden rounded-[2.5rem] border border-border"
-              >
-                <Image
-                  src={cat.image}
-                  alt={cat.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                  className="object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
-                <div className="absolute bottom-10 left-10">
-                  <span className="text-primary text-[10px] font-black tracking-widest uppercase mb-2 block">{cat.count}</span>
-                  <h3 className="text-4xl font-black mb-4 uppercase italic">{cat.name}</h3>
-                  <div className="w-12 h-12 rounded-full glass-morphism flex items-center justify-center group-hover:bg-primary group-hover:text-black transition-all">
-                    <ArrowRight size={20} />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* New Arrivals Section */}
-      <section className="py-24 bg-background border-t border-border">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-end mb-16">
-            <div>
-              <h2 className="text-3xl md:text-5xl font-black mb-4 uppercase italic">NEW <span className="text-primary">ARRIVALS</span></h2>
-              <p className="text-foreground/80 font-bold uppercase tracking-tight">The latest drops from our premium collections.</p>
-            </div>
-            <Link href="/shop" className="flex items-center gap-2 font-bold text-sm text-primary hover:gap-3 transition-all uppercase tracking-widest">
-              SHOP ALL <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {loading ? (
-              [1, 2, 3, 4].map(i => (
-                <div key={i} className="h-96 rounded-3xl bg-foreground/5 animate-pulse" />
-              ))
-            ) : (
-              newArrivals.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Banner */}
-      <section className="py-24 bg-background overflow-hidden px-4">
-        <div className="container mx-auto">
-          <div className="group relative w-full h-[600px] rounded-[3.5rem] overflow-hidden border border-border shadow-2xl cursor-pointer">
-
-            {/* Animated scanning overlay — dark mode only, visible on hover */}
-            <div className="absolute inset-0 z-20 pointer-events-none opacity-0 dark:group-hover:opacity-100 transition-opacity duration-300">
-
-              {/* TOP bar — sweeps left→right */}
-              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-bar-x" />
-              {/* BOTTOM bar — sweeps right→left */}
-              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-l from-transparent via-primary to-transparent animate-scan-bar-x" />
-              {/* LEFT bar — sweeps top→bottom */}
-              <div className="absolute top-0 bottom-0 left-0 w-[3px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-bar-y" />
-              {/* RIGHT bar — sweeps bottom→top */}
-              <div className="absolute top-0 bottom-0 right-0 w-[3px] bg-gradient-to-t from-transparent via-primary to-transparent animate-scan-bar-y" />
-
-              {/* Corner accent brackets */}
-              <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-primary rounded-tl-[3.5rem]" />
-              <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-primary rounded-tr-[3.5rem]" />
-              <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-primary rounded-bl-[3.5rem]" />
-              <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-primary rounded-br-[3.5rem]" />
-
-              {/* Pulse ring */}
-              <div className="absolute inset-0 rounded-[3.5rem] ring-2 ring-primary/40 animate-pulse-ring" />
-            </div>
-            <Image
-              src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=85&w=2000"
-              alt="Summer Collection"
-              fill
-              sizes="100vw"
-              priority
-              className="object-cover opacity-100 dark:opacity-60 saturate-110 dark:saturate-100"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/30 to-transparent dark:from-background dark:via-background/60 dark:to-transparent" />
-            <div className="absolute inset-0 flex items-center px-10 md:px-20">
-              <div className="max-w-xl">
-                <span className="bg-primary/20 text-primary border border-primary/20 px-4 py-1 rounded-full text-xs font-black tracking-widest uppercase mb-6 inline-block">
-                  Limited Release
-                </span>
-                <h2 className="text-4xl md:text-7xl font-black mb-8 leading-tight italic drop-shadow-sm">
-                  THE SUMMER<br />ESSENTIALS &lsquo;26
-                </h2>
-                <p className="text-foreground/90 text-lg mb-10 font-bold uppercase tracking-tight drop-shadow-sm">
-                  Lightweight fabrics, breathable footwear, and versatile accessories.
-                  Curated for the ultimate summer performance and style.
-                </p>
-                <Link href="/shop" className="btn-primary inline-flex items-center gap-3 italic">
-                  EXPLORE THE DROP <ShoppingBag size={18} />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
+  return <div className="flex flex-col">
+    <Hero />
+    <section className="border-y border-border bg-background py-5"><div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 px-4 text-center sm:grid-cols-3 sm:text-left"><div className="flex items-center justify-center gap-3 sm:justify-start"><Truck className="text-primary" size={20} /><div><p className="text-sm font-bold">Addis delivery</p><p className="text-xs text-muted-foreground">Fast local dispatch</p></div></div><div className="flex items-center justify-center gap-3 sm:justify-start"><ShieldCheck className="text-primary" size={20} /><div><p className="text-sm font-bold">Curated quality</p><p className="text-xs text-muted-foreground">Selected for daily wear</p></div></div><div className="flex items-center justify-center gap-3 sm:justify-start"><Zap className="text-primary" size={20} /><div><p className="text-sm font-bold">Fresh drops</p><p className="text-xs text-muted-foreground">New styles added often</p></div></div></div></section>
+    <section className="relative overflow-hidden bg-background py-20 sm:py-24"><div className="mx-auto max-w-6xl px-4"><div className="mb-10 flex items-end justify-between gap-4"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.25em] text-primary">Curated for your rotation</p><h2 className="text-3xl font-black uppercase italic sm:text-5xl">Shop by <span className="text-primary">category</span></h2><p className="mt-3 max-w-xl text-sm font-medium text-muted-foreground sm:text-base">Build the complete look with footwear, apparel, accessories, and travel essentials in one place.</p></div><Link href="/categories" className="hidden items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary md:flex">All categories <ArrowRight size={16} /></Link></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{visibleCategories.map((category, index) => <Link key={category.id} href={`/shop?category=${category.slug}`} className="group relative h-80 overflow-hidden rounded-3xl border border-border bg-secondary/20"><Image src={category.image_url || fallbackCategories[index].image_url || ""} alt={category.name} fill sizes="(max-width: 640px) 100vw, 25vw" className="object-cover transition duration-700 group-hover:scale-110" /><div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" /><div className="absolute inset-x-5 bottom-5"><p className="text-xs font-black uppercase tracking-widest text-primary">Explore collection</p><h3 className="mt-1 text-2xl font-black uppercase italic">{category.name}</h3><p className="mt-1 line-clamp-2 text-xs text-foreground/70">{category.description}</p><span className="mt-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 transition group-hover:bg-primary group-hover:text-primary-foreground"><ChevronRight size={18} /></span></div></Link>)}</div></div></section>
+    <section className="border-t border-border bg-background py-20 sm:py-24"><div className="mx-auto max-w-6xl px-4"><div className="mb-10 flex items-end justify-between gap-4"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.25em] text-primary">Just landed</p><h2 className="text-3xl font-black uppercase italic sm:text-5xl">New <span className="text-primary">arrivals</span></h2><p className="mt-3 text-sm font-medium text-muted-foreground">Fresh products ready for your next rotation.</p></div><Link href="/shop" className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary">Shop all <ArrowRight size={16} /></Link></div><div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">{loading ? [1,2,3,4].map((id) => <div key={id} className="h-96 animate-pulse rounded-3xl bg-secondary/40" />) : newArrivals.length ? newArrivals.map((product) => <ProductCard key={product.id} product={product} />) : <div className="col-span-full rounded-2xl border border-border p-10 text-center text-sm text-muted-foreground">New arrivals are being prepared. Browse the full collection while we restock.</div>}</div></div></section>
+    <section className="border-t border-border bg-background py-20 sm:py-24"><div className="mx-auto max-w-6xl px-4"><div className="mb-10 flex items-end justify-between gap-4"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.25em] text-primary">Staff picks</p><h2 className="text-3xl font-black uppercase italic sm:text-5xl">Featured <span className="text-primary">now</span></h2></div><Link href="/shop?featured=true" className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary">View picks <ArrowRight size={16} /></Link></div><div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">{loading ? [1,2,3,4].map((id) => <div key={id} className="h-96 animate-pulse rounded-3xl bg-secondary/40" />) : featuredProducts.length ? featuredProducts.map((product) => <ProductCard key={product.id} product={product} />) : <div className="col-span-full rounded-2xl border border-border p-10 text-center text-sm text-muted-foreground">Featured picks will appear here after the catalog is published.</div>}</div></div></section>
+    <section className="px-4 py-20 sm:py-24"><div className="mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-border bg-secondary/20"><div className="grid items-center gap-8 p-8 sm:p-12 lg:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.25em] text-primary">Complete the look</p><h2 className="text-4xl font-black uppercase italic sm:text-6xl">One drop.<br /><span className="text-primary">Many ways.</span></h2><p className="mt-5 max-w-lg text-sm font-medium leading-relaxed text-muted-foreground">Start with a daily sneaker, add a heavyweight layer, and finish with accessories built for your route through the city.</p><Link href="/shop" className="mt-8 inline-flex items-center gap-3 rounded-xl bg-primary px-6 py-3 font-black text-primary-foreground transition hover:opacity-90">Explore the collection <ShoppingBag size={18} /></Link></div><div className="relative h-72 overflow-hidden rounded-2xl sm:h-96"><Image src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=85" alt="AK Drop collection" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover transition duration-700 hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-tr from-background/60 via-transparent to-primary/10" /></div></div></div></section>
+  </div>;
 }
