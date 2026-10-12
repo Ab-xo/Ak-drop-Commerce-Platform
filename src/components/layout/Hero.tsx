@@ -9,24 +9,30 @@ import gsap from "gsap";
 const heroSlides = [
     {
         id: 1,
-        image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=2000",
-        title: "ELEVATED",
-        titleAccent: "AESTHETICS",
-        description: "Discover the intersection of performance and luxury. Curated footwear for the modern professional statement.",
+        // High-res single sneaker hero shot
+        image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=90&w=2400",
+        tag: "New Drop",
+        title: "PREMIUM",
+        titleAccent: "FOOTWEAR",
+        description: "Iconic silhouettes. Exclusive colourways. Step into the latest drops from the world's most coveted sneaker labels.",
     },
     {
         id: 2,
-        image: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&q=80&w=2000",
-        title: "PREMIUM",
-        titleAccent: "CRAFTSMANSHIP",
-        description: "Every piece meticulously crafted from world-class materials. Uncompromising quality meets timeless design.",
+        // High-res streetwear / apparel lifestyle shot
+        image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=90&w=2400",
+        tag: "Apparel",
+        title: "STREET",
+        titleAccent: "STYLE",
+        description: "Shirts, hoodies, and everyday fits built for Addis Ababa energy. Wear the culture.",
     },
     {
         id: 3,
-        image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&q=80&w=2000",
-        title: "MODERN",
-        titleAccent: "STATEMENT",
-        description: "Bold designs that command attention. Express your individuality with confidence and sophistication.",
+        // High-res accessories / watch / bag lifestyle
+        image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=90&w=2400",
+        tag: "Accessories",
+        title: "FINISH",
+        titleAccent: "THE LOOK",
+        description: "Bags, caps, watches, and the details that complete every outfit. Curated accessories for every occasion.",
     },
 ];
 
@@ -89,7 +95,7 @@ export default function Hero() {
                 >
                     <Image
                         src={slide.image}
-                        alt={`${slide.title} ${slide.titleAccent}`}
+                        alt={`AK Drop — ${slide.tag}`}
                         fill
                         priority={index === 0}
                         sizes="100vw"
@@ -106,6 +112,12 @@ export default function Hero() {
 
             <div className="container mx-auto px-4 md:px-12 z-20">
                 <div ref={textRef} className="max-w-3xl space-y-10">
+                    <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 px-4 py-1.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        <span className="text-primary text-xs font-black uppercase tracking-widest">
+                            {currentSlideData.tag}
+                        </span>
+                    </div>
                     <h1 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.85] uppercase italic text-foreground dark:text-foreground light:text-white drop-shadow-md">
                         {currentSlideData.title}<br />
                         <span className="text-primary drop-shadow-md">{currentSlideData.titleAccent}</span>
