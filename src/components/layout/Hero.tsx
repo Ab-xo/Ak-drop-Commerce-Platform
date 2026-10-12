@@ -93,20 +93,25 @@ export default function Hero() {
                         fill
                         priority={index === 0}
                         sizes="100vw"
-                        className="object-cover opacity-90 dark:opacity-40"
+                        className="object-cover opacity-100 dark:opacity-40 saturate-[1.15] dark:saturate-100 brightness-[0.85] dark:brightness-100"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-background via-background/60 to-transparent z-10" />
+                    {/* Dark mode: white-to-transparent gradient covers left side */}
+                    <div className="absolute inset-0 hidden dark:block bg-gradient-to-r from-background via-background/60 to-transparent z-10" />
+                    {/* Light mode: dark scrim so image stays vivid and text is readable */}
+                    <div className="absolute inset-0 dark:hidden z-10"
+                        style={{ background: "linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.05) 100%)" }}
+                    />
                 </div>
             ))}
 
             <div className="container mx-auto px-4 md:px-12 z-20">
                 <div ref={textRef} className="max-w-3xl space-y-10">
-                    <h1 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.85] uppercase italic text-foreground">
+                    <h1 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.85] uppercase italic text-foreground dark:text-foreground light:text-white drop-shadow-md">
                         {currentSlideData.title}<br />
-                        <span className="text-primary">{currentSlideData.titleAccent}</span>
+                        <span className="text-primary drop-shadow-md">{currentSlideData.titleAccent}</span>
                     </h1>
 
-                    <p className="text-xl md:text-2xl text-foreground/80 font-bold uppercase tracking-tight max-w-xl border-l-4 border-primary pl-6">
+                    <p className="text-xl md:text-2xl text-foreground/90 dark:text-foreground/80 font-bold uppercase tracking-tight max-w-xl border-l-4 border-primary pl-6 drop-shadow-sm">
                         {currentSlideData.description}
                     </p>
 
@@ -134,14 +139,14 @@ export default function Hero() {
             {/* Navigation Arrows */}
             <button
                 onClick={prevSlide}
-                className="absolute left-8 top-1/2 -translate-y-1/2 z-30 p-4 bg-background/80 backdrop-blur-lg rounded-full hover:bg-primary hover:text-primary-foreground transition-all border border-border hover:scale-110 active:scale-95"
+                className="absolute left-8 top-1/2 -translate-y-1/2 z-30 p-4 bg-black/30 dark:bg-background/80 backdrop-blur-lg rounded-full hover:bg-primary hover:text-primary-foreground transition-all border border-white/20 dark:border-border hover:scale-110 active:scale-95 text-white dark:text-foreground"
                 aria-label="Previous slide"
             >
                 <ChevronLeft size={24} />
             </button>
             <button
                 onClick={nextSlide}
-                className="absolute right-8 top-1/2 -translate-y-1/2 z-30 p-4 bg-background/80 backdrop-blur-lg rounded-full hover:bg-primary hover:text-primary-foreground transition-all border border-border hover:scale-110 active:scale-95"
+                className="absolute right-8 top-1/2 -translate-y-1/2 z-30 p-4 bg-black/30 dark:bg-background/80 backdrop-blur-lg rounded-full hover:bg-primary hover:text-primary-foreground transition-all border border-white/20 dark:border-border hover:scale-110 active:scale-95 text-white dark:text-foreground"
                 aria-label="Next slide"
             >
                 <ChevronRight size={24} />
