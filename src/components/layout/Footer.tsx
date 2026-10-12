@@ -1,9 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { Instagram, Facebook, Phone, MapPin, ArrowUpRight } from "lucide-react";
+import { Phone, MapPin, ArrowUpRight } from "lucide-react";
+import {
+  FaInstagram,
+  FaFacebook,
+  FaTiktok,
+  FaTelegram,
+  FaYoutube,
+  FaXTwitter,
+} from "react-icons/fa6";
 
-const shopLinks = [
+const socialLinks = [
+  { icon: <FaInstagram size={17} />, href: "#",                              label: "Instagram" },
+  { icon: <FaFacebook  size={17} />, href: "#",                              label: "Facebook"  },
+  { icon: <FaXTwitter  size={17} />, href: "#",                              label: "X / Twitter" },
+  { icon: <FaTiktok    size={17} />, href: "#",                              label: "TikTok"    },
+  { icon: <FaTelegram  size={17} />, href: "https://t.me/akdrop",            label: "Telegram"  },
+  { icon: <FaYoutube   size={17} />, href: "#",                              label: "YouTube"   },
+];
   { label: "All products",       href: "/shop" },
   { label: "Shoes",              href: "/shop?category=shoes" },
   { label: "Shirts & apparel",   href: "/shop?category=clothing" },
@@ -83,21 +98,19 @@ export default function Footer() {
               Curated footwear, apparel, and everyday style for Addis and beyond.
               Shop confidently from a modern Ethiopian storefront.
             </p>
-            <div className="flex gap-3">
-              <Link
-                href="#"
-                aria-label="Instagram"
-                className="p-2 bg-foreground/5 rounded-full hover:bg-primary hover:text-primary-foreground hover:scale-110 transition-all duration-200"
-              >
-                <Instagram size={17} />
-              </Link>
-              <Link
-                href="#"
-                aria-label="Facebook"
-                className="p-2 bg-foreground/5 rounded-full hover:bg-primary hover:text-primary-foreground hover:scale-110 transition-all duration-200"
-              >
-                <Facebook size={17} />
-              </Link>
+            <div className="flex flex-wrap gap-3">
+              {socialLinks.map(({ icon, href, label }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  target={href.startsWith("http") ? "_blank" : undefined}
+                  rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+                  className="p-2 bg-foreground/5 rounded-full hover:bg-primary hover:text-primary-foreground hover:scale-110 transition-all duration-200"
+                >
+                  {icon}
+                </a>
+              ))}
             </div>
           </div>
 
