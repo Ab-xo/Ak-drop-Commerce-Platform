@@ -2,49 +2,55 @@
 
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 
 const ThemeToggle = () => {
-    const { theme, setTheme } = useTheme();
+    const { resolvedTheme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
+    // Avoid hydration mismatch — only render after mount
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    if (!mounted) return <div className="w-10 h-10" />;
+    if (!mounted) return <div className="w-[72px] h-9" />;
+
+    const isDark = resolvedTheme === "dark";
 
     return (
-        <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-foreground/10 transition-colors relative overflow-hidden"
-            aria-label="Toggle theme"
+        <div
+            role="group"
+            aria-label="Theme switcher"
+            className="flex items-center gap-1 bg-foreground/8 border border-border rounded-full p-1"
         >
-            <AnimatePresence mode="wait" initial={false}>
-                {theme === "dark" ? (
-                    <motion.div
-                        key="moon"
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -20, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <Moon size={20} />
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="sun"
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -20, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <Sun size={20} className="text-orange-500" />
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </button>
+            {/* Light */}
+            <button
+                onClick={() => setTheme("light")}
+                aria-label="Switch to light mode"
+                aria-pressed={!isDark}
+                className={`flex items-center justify-center w-8 h-7 rounded-full transition-all duration-200 ${
+                    !isDark
+                        ? "bg-background shadow text-orange-500"
+                        : "text-foreground/40 hover:text-foreground/70"
+                }`}
+            >
+                <Sun size={15} />
+            </button>
+
+            {/* Dark */}
+            <button
+                onClick={() => setTheme("dark")}
+                aria-label="Switch to dark mode"
+                aria-pressed={isDark}
+                className={`flex items-center justify-center w-8 h-7 rounded-full transition-all duration-200 ${
+                    isDark
+                        ? "bg-background shadow text-blue-400"
+                        : "text-foreground/40 hover:text-foreground/70"
+                }`}
+            >
+                <Moon size={15} />
+            </button>
+        </div>
     );
 };
 
