@@ -1,54 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, Check, Package, Sparkles, Tag, Trash2, UserRound } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { UserProfile } from "@/lib/supabase";
 
-type Order = { id: string; order_number?: string; status?: string; created_at?: string; };
-type Notification = { id: string; type: "order" | "promo" | "system"; title: string; message: string; timestamp: string; read: boolean; };
+type Order = { id: string; order_number?: string; status?: string; created_at?: string };
+type Notification = { id: string; type: "order" | "promo" | "system"; title: string; message: string; timestamp: string; read: boolean };
+interface NotificationsSectionProps { orders?: Order[]; profile?: UserProfile | null }
 
-interface NotificationsSectionProps { orders?: Order[]; profile?: UserProfile | null; }
-
-function relativeDate(value?: string) {
-  if (!value) return "Recently";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Recently";
-  const minutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000));
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-}
+function relativeDate(value?: string) { if (!value) return "Recently"; const date = new Date(value); if (Number.isNaN(date.getTime())) return "Recently"; const minutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000)); if (minutes < 60) return `${minutes}m ago`; const hours = Math.round(minutes / 60); if (hours < 24) return `${hours}h ago`; return `${Math.round(hours / 24)}d ago`; }
 
 export default function NotificationsSection({ orders = [], profile }: NotificationsSectionProps) {
-  const initial = useMemo<Notification[]>(() => {
-    const orderNotifications = orders.slice(0, 5).map((order) => ({
-      id: `order-${order.id}`,
-      type: "order" as const,
-      title: `Order ${order.status || "received"}`,
-      message: order.order_number ? `Order #${order.order_number} is currently ${order.status || "being processed"}.` : "Your order status has been updated.",
-      timestamp: relativeDate(order.created_at),
-      read: true,
-    }));
-    const profileNotification = profile ? [{ id: "profile-ready", type: "system" as const, title: "Profile ready", message: "Your AK Drop profile is ready to personalize.", timestamp: relativeDate(profile.updated_at || profile.created_at), read: true }] : [];
-    return [...orderNotifications, ...profileNotification];
-  }, [orders, profile]);
-
+  const initial = useMemo<Notification[]>(() => [...orders.slice(0, 5).map((order) => ({ id: `order-${order.id}`, type: "order" as const, title: `Order ${order.status || "received"}`, message: order.order_number ? `Order #${order.order_number} is currently ${order.status || "being processed"}.` : "Your order status has been updated.", timestamp: relativeDate(order.created_at), read: true })), ...(profile ? [{ id: "profile-ready", type: "system" as const, title: "Profile ready", message: "Your AK Drop profile is ready to personalize.", timestamp: relativeDate(profile.updated_at || profile.created_at), read: true }] : [])], [orders, profile]);
   const [notifications, setNotifications] = useState<Notification[]>(initial);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  useEffect(() => setNotifications(initial), [initial]);
   const unreadCount = notifications.filter((item) => !item.read).length;
   const visible = notifications.filter((item) => filter === "all" || !item.read);
-
-  const markAllRead = () => setNotifications((items) => items.map((item) => ({ ...item, read: true })));
-  const markRead = (id: string) => setNotifications((items) => items.map((item) => item.id === id ? { ...item, read: true } : item));
-  const remove = (id: string) => setNotifications((items) => items.filter((item) => item.id !== id));
   const icon = (type: Notification["type"]) => type === "order" ? Package : type === "promo" ? Tag : UserRound;
 
-  return <div className="space-y-6">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="flex items-center gap-3 text-2xl font-black"><span className="rounded-xl bg-primary/10 p-2.5"><Bell size={22} className="text-primary" /></span>Notifications</h2><p className="mt-2 text-sm text-muted-foreground">{unreadCount ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}` : "You are all caught up."}</p></div>{unreadCount > 0 && <button type="button" onClick={markAllRead} className="inline-flex items-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/20"><Check size={16} />Mark all read</button>}</div>
-    <div className="flex gap-2">{([['all','All',notifications.length],['unread','Unread',unreadCount]] as const).map(([id,label,count]) => <button type="button" key={id} onClick={() => setFilter(id)} className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${filter === id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground'}`}>{label}<span className="ml-2 rounded-full bg-background/70 px-1.5 py-0.5 text-[10px]">{count}</span></button>)}</div>
-    {visible.length === 0 ? <div className="rounded-2xl border border-border bg-background py-16 text-center"><Sparkles size={36} className="mx-auto mb-4 text-primary" /><h3 className="text-lg font-bold">{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</h3><p className="mt-2 text-sm text-muted-foreground">{orders.length ? 'New order updates will appear here.' : 'Your account updates and order activity will appear here.'}</p></div> : <div className="space-y-3"><AnimatePresence mode="popLayout">{visible.map((item) => { const Icon = icon(item.type); return <motion.article key={item.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} className={`flex items-start gap-4 rounded-2xl border p-5 ${item.read ? 'border-border bg-background' : 'border-primary/30 bg-primary/5'}`}><div className="rounded-xl bg-secondary/60 p-3"><Icon size={20} className="text-primary" /></div><div className="min-w-0 flex-1"><h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-sm text-muted-foreground">{item.message}</p><p className="mt-2 text-xs text-muted-foreground/70">{item.timestamp}</p></div><div className="flex gap-1"><button type="button" onClick={() => markRead(item.id)} className="rounded-lg p-2 hover:bg-primary/10" title="Mark as read"><Check size={15} className="text-primary" /></button><button type="button" onClick={() => remove(item.id)} className="rounded-lg p-2 hover:bg-red-500/10" title="Remove notification"><Trash2 size={15} className="text-red-400" /></button></div></motion.article>; })}</AnimatePresence></div>}
-  </div>;
+  return <div className="space-y-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="flex items-center gap-3 text-2xl font-black"><span className="rounded-xl bg-primary/10 p-2.5"><Bell size={22} className="text-primary" /></span>Notifications</h2><p className="mt-2 text-sm text-muted-foreground">{unreadCount ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}` : "You are all caught up."}</p></div>{unreadCount > 0 && <button type="button" onClick={() => setNotifications((items) => items.map((item) => ({ ...item, read: true })))} className="inline-flex items-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/20"><Check size={16} />Mark all read</button>}</div><div className="flex gap-2">{([['all','All',notifications.length],['unread','Unread',unreadCount]] as const).map(([id,label,count]) => <button type="button" key={id} onClick={() => setFilter(id)} className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${filter === id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground'}`}>{label}<span className="ml-2 rounded-full bg-background/70 px-1.5 py-0.5 text-[10px]">{count}</span></button>)}</div>{visible.length === 0 ? <div className="rounded-2xl border border-border bg-background py-16 text-center"><Sparkles size={36} className="mx-auto mb-4 text-primary" /><h3 className="text-lg font-bold">{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</h3><p className="mt-2 text-sm text-muted-foreground">{orders.length ? 'New order updates will appear here.' : 'Your account updates and order activity will appear here.'}</p></div> : <div className="space-y-3"><AnimatePresence mode="popLayout">{visible.map((item) => { const Icon = icon(item.type); return <motion.article key={item.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} className={`flex items-start gap-4 rounded-2xl border p-5 ${item.read ? 'border-border bg-background' : 'border-primary/30 bg-primary/5'}`}><div className="rounded-xl bg-secondary/60 p-3"><Icon size={20} className="text-primary" /></div><div className="min-w-0 flex-1"><h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-sm text-muted-foreground">{item.message}</p><p className="mt-2 text-xs text-muted-foreground/70">{item.timestamp}</p></div><div className="flex gap-1"><button type="button" onClick={() => setNotifications((items) => items.map((entry) => entry.id === item.id ? { ...entry, read: true } : entry))} className="rounded-lg p-2 hover:bg-primary/10" title="Mark as read"><Check size={15} className="text-primary" /></button><button type="button" onClick={() => setNotifications((items) => items.filter((entry) => entry.id !== item.id))} className="rounded-lg p-2 hover:bg-red-500/10" title="Remove notification"><Trash2 size={15} className="text-red-400" /></button></div></motion.article>; })}</AnimatePresence></div>}</div>;
 }
