@@ -117,7 +117,20 @@ export default function Home() {
       {/* Featured Banner */}
       <section className="py-24 bg-background overflow-hidden px-4">
         <div className="container mx-auto">
-          <div className="relative w-full h-[600px] rounded-[3.5rem] overflow-hidden border border-border shadow-2xl">
+          <div className="group relative w-full h-[600px] rounded-[3.5rem] overflow-hidden border border-border shadow-2xl cursor-pointer">
+
+            {/* Animated scanning bar — visible on hover */}
+            <div className="absolute inset-0 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              {/* Top sweep bar */}
+              <div className="absolute left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-bar" />
+              {/* Corner accent lines */}
+              <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-primary rounded-tl-[3.5rem]" />
+              <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-primary rounded-tr-[3.5rem]" />
+              <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-primary rounded-bl-[3.5rem]" />
+              <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-primary rounded-br-[3.5rem]" />
+              {/* Primary glow pulse ring */}
+              <div className="absolute inset-0 rounded-[3.5rem] ring-2 ring-primary/40 animate-pulse-ring" />
+            </div>
             <Image
               src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=85&w=2000"
               alt="Summer Collection"
