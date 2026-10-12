@@ -7,32 +7,32 @@ import Link from "next/link";
 
 const features = [
   {
-    icon: <ShoppingCart className="text-primary" size={32} />,
+    icon: <ShoppingCart size={32} />,
     title: "Easy online ordering",
     desc: "Browse shoes, shirts, apparel, and accessories from your phone or laptop, then add your favourites to a simple shopping bag.",
   },
   {
-    icon: <Zap className="text-primary" size={32} />,
+    icon: <Zap size={32} />,
     title: "Fresh drops & offers",
     desc: "Discover new arrivals, limited releases, and practical offers curated for everyday style in Ethiopia.",
   },
   {
-    icon: <ShieldCheck className="text-primary" size={32} />,
+    icon: <ShieldCheck size={32} />,
     title: "Trusted support",
     desc: "Our team helps with fit, product details, availability, and order questions before and after your purchase.",
   },
   {
-    icon: <Heart className="text-primary" size={32} />,
+    icon: <Heart size={32} />,
     title: "Style with personality",
     desc: "We select pieces that let customers express their own taste instead of following one narrow trend.",
   },
   {
-    icon: <TrendingUp className="text-primary" size={32} />,
+    icon: <TrendingUp size={32} />,
     title: "Fair ETB pricing",
     desc: "Clear Ethiopian Birr pricing helps shoppers compare products confidently without hidden currency surprises.",
   },
   {
-    icon: <Truck className="text-primary" size={32} />,
+    icon: <Truck size={32} />,
     title: "Addis-focused delivery",
     desc: "We are building a convenient local shopping experience for Addis Ababa customers, with delivery information made clear.",
   },
@@ -176,8 +176,10 @@ export default function AboutPage() {
               transition={{ delay: idx * 0.1 }}
               className="glass-card group hover:bg-foreground/5 transition-all duration-500"
             >
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-8 border border-primary/20 group-hover:bg-primary transition-colors group-hover:text-black">
-                {feature.icon}
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-8 border border-primary/20 group-hover:bg-primary transition-colors">
+                <span className="text-primary group-hover:text-primary-foreground transition-colors">
+                  {feature.icon}
+                </span>
               </div>
               <h3 className="text-2xl font-black uppercase italic mb-4 tracking-tighter group-hover:text-primary transition-colors">
                 {feature.title}
