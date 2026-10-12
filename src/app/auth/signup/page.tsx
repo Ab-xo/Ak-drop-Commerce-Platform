@@ -50,7 +50,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex pt-20">
 
       {/* ── Left image panel ── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
@@ -65,13 +65,8 @@ export default function SignUpPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/60" />
 
         <div className="relative z-10 flex flex-col justify-between h-full p-12">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group w-fit">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black rotate-[-8deg] group-hover:rotate-0 transition-transform duration-300">
-              AK
-            </span>
-            <span className="text-xl font-black tracking-[.18em] uppercase text-white">DROP</span>
-          </Link>
+          {/* spacer — navbar covers the top */}
+          <div />
 
           {/* Quote */}
           <div className="space-y-6">
@@ -104,13 +99,6 @@ export default function SignUpPage() {
           transition={{ duration: 0.4 }}
           className="w-full max-w-md"
         >
-          {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-3 mb-8">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm rotate-[-8deg]">
-              AK
-            </span>
-            <span className="text-lg font-black tracking-[.18em] uppercase">DROP</span>
-          </div>
 
           {/* Heading */}
           <div className="mb-8">

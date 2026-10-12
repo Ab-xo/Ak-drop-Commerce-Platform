@@ -67,7 +67,7 @@ function SignInForm() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex pt-20">
 
       {/* ── Left image panel ── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
@@ -79,18 +79,12 @@ function SignInForm() {
           sizes="50vw"
           className="object-cover"
         />
-        {/* Dark scrim */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/60" />
 
         {/* Panel content */}
         <div className="relative z-10 flex flex-col justify-between h-full p-12">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group w-fit">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black rotate-[-8deg] group-hover:rotate-0 transition-transform duration-300">
-              AK
-            </span>
-            <span className="text-xl font-black tracking-[.18em] uppercase text-white">DROP</span>
-          </Link>
+          {/* spacer — navbar covers the top */}
+          <div />
 
           {/* Quote */}
           <div className="space-y-6">
@@ -99,7 +93,7 @@ function SignInForm() {
               STYLE THAT<br /><span className="text-primary">MOVES YOU</span>
             </h2>
             <p className="text-white/70 text-lg font-medium max-w-xs">
-              Premium footwear, apparel & accessories — curated for Addis Ababa and beyond.
+              Premium footwear, apparel &amp; accessories — curated for Addis Ababa and beyond.
             </p>
             <Link
               href="/shop"
@@ -109,7 +103,6 @@ function SignInForm() {
             </Link>
           </div>
 
-          {/* Slide indicators */}
           <p className="text-white/30 text-xs font-bold uppercase tracking-widest">
             AK Drop — Addis Ababa, Ethiopia
           </p>
@@ -124,13 +117,6 @@ function SignInForm() {
           transition={{ duration: 0.4 }}
           className="w-full max-w-md"
         >
-          {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-3 mb-8">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm rotate-[-8deg]">
-              AK
-            </span>
-            <span className="text-lg font-black tracking-[.18em] uppercase">DROP</span>
-          </div>
 
           {/* Heading */}
           <div className="mb-8">
