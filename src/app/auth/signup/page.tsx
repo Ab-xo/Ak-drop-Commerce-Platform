@@ -16,231 +16,31 @@ export default function SignUpPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleSubmit = async (formData: FormData) => {
+    const password = String(formData.get('password') ?? '');
+    const confirmPassword = String(formData.get('confirmPassword') ?? '');
+    if (password !== confirmPassword) { toast.error("Passwords don't match."); return; }
     setIsLoading(true);
     try {
       const result = await signUp(formData);
-      if (result?.error) {
-        toast.error(result.error);
-      } else {
-        toast.success('Account created! Check your email to verify.');
-      }
-    } catch {
-      toast.error('An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+      if (result?.error) toast.error(result.error);
+      else toast.success('Account created! Check your email to verify.');
+    } catch { toast.error('An unexpected error occurred. Please try again.'); }
+    finally { setIsLoading(false); }
   };
 
   const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
-      });
-      if (error) {
-        toast.error(error.message || 'Failed to sign up with Google.');
-        setIsGoogleLoading(false);
-      }
-    } catch {
-      toast.error('Failed to sign up with Google. Please try again.');
-      setIsGoogleLoading(false);
-    }
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } });
+      if (error) { toast.error(error.message || 'Failed to sign up with Google.'); setIsGoogleLoading(false); }
+    } catch { toast.error('Failed to sign up with Google. Please try again.'); setIsGoogleLoading(false); }
   };
 
   return (
     <div className="min-h-screen flex pt-20">
-
-      {/* ── Left image panel ── */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <Image
-          src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=90&w=1400"
-          alt="AK Drop streetwear collection"
-          fill
-          priority
-          sizes="50vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/60" />
-
-        <div className="relative z-10 flex flex-col justify-between h-full p-12">
-          {/* spacer — navbar covers the top */}
-          <div />
-
-          {/* Quote */}
-          <div className="space-y-6">
-            <div className="w-12 h-1 bg-primary rounded-full" />
-            <h2 className="text-4xl md:text-5xl font-black italic uppercase text-white leading-tight">
-              JOIN THE<br /><span className="text-primary">DROP</span>
-            </h2>
-            <p className="text-white/70 text-lg font-medium max-w-xs">
-              Create your free account and get access to exclusive drops, ETB pricing, and fast Addis delivery.
-            </p>
-            <Link
-              href="/shop"
-              className="inline-flex items-center gap-2 text-primary text-sm font-black uppercase tracking-widest hover:gap-4 transition-all"
-            >
-              Browse the catalog <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          <p className="text-white/30 text-xs font-bold uppercase tracking-widest">
-            AK Drop — Addis Ababa, Ethiopia
-          </p>
-        </div>
-      </div>
-
-      {/* ── Right form panel ── */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-background px-6 py-12 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-md"
-        >
-
-          {/* Heading */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-2">
-              Create <span className="text-primary">Account</span>
-            </h1>
-            <p className="text-foreground/50 text-sm">
-              Join AK Drop — free, fast, and built for Addis style.
-            </p>
-          </div>
-
-          {/* Card */}
-          <div className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-primary via-purple-500 to-blue-500" />
-            <div className="p-8 space-y-6">
-
-              {/* Google */}
-              <button
-                onClick={handleGoogleSignUp}
-                disabled={isGoogleLoading}
-                className="w-full flex items-center justify-center gap-3 bg-background border border-border py-3.5 px-4 rounded-xl font-medium text-sm hover:bg-foreground/5 hover:border-primary/40 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isGoogleLoading ? (
-                  <>
-                    <span className="w-5 h-5 border-2 border-foreground/20 border-t-primary rounded-full animate-spin" />
-                    Redirecting to Google...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                    </svg>
-                    Continue with Google
-                  </>
-                )}
-              </button>
-
-              {/* Divider */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-[11px] text-foreground/40 uppercase tracking-widest font-medium">or</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-
-              {/* Form */}
-              <form action={handleSubmit} className="space-y-4">
-
-                {/* Full name */}
-                <div className="space-y-1.5">
-                  <label htmlFor="fullName" className="text-sm font-semibold text-foreground">Full name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
-                    <input id="fullName" name="fullName" type="text" required
-                      placeholder="Your full name"
-                      className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div className="space-y-1.5">
-                  <label htmlFor="email" className="text-sm font-semibold text-foreground">Email address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
-                    <input id="email" name="email" type="email" required
-                      placeholder="your@email.com"
-                      autoComplete="email"
-                      className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
-                  </div>
-                </div>
-
-                {/* Username */}
-                <div className="space-y-1.5">
-                  <label htmlFor="username" className="text-sm font-semibold text-foreground">Username</label>
-                  <div className="relative">
-                    <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
-                    <input id="username" name="username" type="text" required
-                      placeholder="Choose a username"
-                      className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div className="space-y-1.5">
-                  <label htmlFor="password" className="text-sm font-semibold text-foreground">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
-                    <input id="password" name="password" type={showPassword ? 'text' : 'password'} required
-                      placeholder="Create a password"
-                      className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground transition-colors p-1">
-                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Confirm password */}
-                <div className="space-y-1.5">
-                  <label htmlFor="confirmPassword" className="text-sm font-semibold text-foreground">Confirm password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
-                    <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required
-                      placeholder="Confirm your password"
-                      className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground transition-colors p-1">
-                      {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-black text-sm uppercase italic tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isLoading ? (
-                    <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />Creating account...</>
-                  ) : (
-                    'Create Account'
-                  )}
-                </button>
-              </form>
-
-              <p className="text-center text-sm text-foreground/50">
-                Already have an account?{' '}
-                <Link href="/auth/signin" className="text-primary hover:underline font-bold">
-                  Sign in
-                </Link>
-              </p>
-            </div>
-          </div>
-
-          <p className="text-center text-xs text-foreground/30 mt-6">
-            By creating an account, you agree to AK Drop&apos;s Terms &amp; Privacy Policy.
-          </p>
-        </motion.div>
-      </div>
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden"><Image src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=90&w=1400" alt="AK Drop streetwear collection" fill priority sizes="50vw" className="object-cover" /><div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/60" /><div className="relative z-10 flex flex-col justify-between h-full p-12"><div /><div className="space-y-6"><div className="w-12 h-1 bg-primary rounded-full" /><h2 className="text-4xl md:text-5xl font-black italic uppercase text-white leading-tight">JOIN THE<br /><span className="text-primary">DROP</span></h2><p className="text-white/70 text-lg font-medium max-w-xs">Create your free account and get access to exclusive drops, ETB pricing, and fast Addis delivery.</p><Link href="/shop" className="inline-flex items-center gap-2 text-primary text-sm font-black uppercase tracking-widest hover:gap-4 transition-all">Browse the catalog <ArrowRight size={16} /></Link></div><p className="text-white/30 text-xs font-bold uppercase tracking-widest">AK Drop — Addis Ababa, Ethiopia</p></div></div>
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-background px-6 py-12 overflow-y-auto"><motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-md"><div className="mb-8"><h1 className="text-3xl font-black uppercase italic tracking-tighter mb-2">Create <span className="text-primary">Account</span></h1><p className="text-foreground/50 text-sm">Join AK Drop — free, fast, and built for Addis style.</p></div><div className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden"><div className="h-1 bg-gradient-to-r from-primary via-purple-500 to-blue-500" /><div className="p-8 space-y-6"><button type="button" onClick={handleGoogleSignUp} disabled={isGoogleLoading} className="w-full flex items-center justify-center gap-3 bg-background border border-border py-3.5 px-4 rounded-xl font-medium text-sm hover:bg-foreground/5 hover:border-primary/40 transition-all disabled:opacity-60">{isGoogleLoading ? 'Redirecting to Google…' : 'Continue with Google'}</button><div className="flex items-center gap-4"><div className="flex-1 h-px bg-border" /><span className="text-[11px] text-foreground/40 uppercase tracking-widest">or</span><div className="flex-1 h-px bg-border" /></div><form action={handleSubmit} className="space-y-4"><div className="space-y-1.5"><label htmlFor="fullName" className="text-sm font-semibold">Full name</label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} /><input id="fullName" name="fullName" type="text" required minLength={2} maxLength={80} autoComplete="name" placeholder="Your full name" className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none" /></div></div><div className="space-y-1.5"><label htmlFor="email" className="text-sm font-semibold">Email address</label><div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} /><input id="email" name="email" type="email" required autoComplete="email" placeholder="your@email.com" className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none" /></div></div><div className="space-y-1.5"><label htmlFor="username" className="text-sm font-semibold">Username</label><div className="relative"><UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} /><input id="username" name="username" type="text" required minLength={3} maxLength={16} pattern="[A-Za-z0-9_]+" autoComplete="username" placeholder="Choose a username" className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none" /></div></div><div className="space-y-1.5"><label htmlFor="password" className="text-sm font-semibold">Password</label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} /><input id="password" name="password" type={showPassword ? 'text' : 'password'} required minLength={10} autoComplete="new-password" placeholder="At least 10 characters" className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none" /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 p-1">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div><p className="text-[11px] text-muted-foreground">Use uppercase, lowercase, a number, and a special character.</p></div><div className="space-y-1.5"><label htmlFor="confirmPassword" className="text-sm font-semibold">Confirm password</label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} /><input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required minLength={10} autoComplete="new-password" placeholder="Repeat your password" className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none" /><button type="button" aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'} onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 p-1">{showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></div><button type="submit" disabled={isLoading} className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-black text-sm uppercase italic tracking-widest hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">{isLoading ? 'Creating account…' : 'Create Account'}</button></form><p className="text-center text-sm text-foreground/50">Already have an account? <Link href="/auth/signin" className="text-primary hover:underline font-bold">Sign in</Link></p></div></div><p className="text-center text-xs text-foreground/30 mt-6">By creating an account, you agree to AK Drop&apos;s Terms &amp; Privacy Policy.</p></motion.div></div>
     </div>
   );
 }
