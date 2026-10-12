@@ -22,14 +22,14 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
-  --animate-fade-in: fadeIn 0.5s ease-out forwards;
-  --animate-slide-up: slideUp 0.6s ease-out forwards;
+  /* Performance optimized animations */
+  --animate-fade-in: fadeIn 0.3s ease-out forwards;
+  --animate-slide-up: slideUp 0.4s ease-out forwards;
 
   @keyframes fadeIn {
     from {
       opacity: 0;
     }
-
     to {
       opacity: 1;
     }
@@ -37,10 +37,9 @@
 
   @keyframes slideUp {
     from {
-      transform: translateY(20px);
+      transform: translateY(16px);
       opacity: 0;
     }
-
     to {
       transform: translateY(0);
       opacity: 1;
@@ -51,13 +50,12 @@
     0% {
       transform: translateX(0);
     }
-
     100% {
       transform: translateX(-50%);
     }
   }
 
-  --animate-marquee: marquee 30s linear infinite;
+  --animate-marquee: marquee 20s linear infinite;
 }
 
 :root {
@@ -79,11 +77,56 @@
   --radius: 0.75rem;
 
   /* Glassmorphism Variables - Light */
-  --glass-bg: 0 0% 100% / 0.8;
+  --glass-bg: 0 0% 100% / 0.7;
   --glass-border: 210 20% 0% / 0.08;
   --glass-glow: 263.4 70% 50.4% / 0.05;
 
   /* Specialized Card Style */
+  --card-border: 263.4 70% 50.4% / 0.1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+
+    /* Glassmorphism Variables - Dark */
+    --glass-bg: 0 0% 3% / 0.6;
+    --glass-border: 0 0% 100% / 0.1;
+    --glass-glow: 263.4 70% 50.4% / 0.1;
+  }
+}
+
+.light {
+  --background: 210 20% 98.5%;
+  --foreground: 240 10% 3.9%;
+  --primary: 263.4 70% 50.4%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 20% 95%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 210 20% 95%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 263.4 70% 50.4% / 0.05;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 210 20% 90%;
+  --input: 210 20% 90%;
+  --ring: 263.4 70% 50.4%;
+  --radius: 0.75rem;
+  --glass-bg: 0 0% 100% / 0.7;
+  --glass-border: 210 20% 0% / 0.08;
+  --glass-glow: 263.4 70% 50.4% / 0.05;
   --card-border: 263.4 70% 50.4% / 0.1;
 }
 
@@ -103,11 +146,10 @@
   --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
   --ring: 263.4 70% 50.4%;
-
-  /* Glassmorphism Variables - Dark */
-  --glass-bg: 0 0% 3% / 0.7;
+  --glass-bg: 0 0% 3% / 0.6;
   --glass-border: 0 0% 100% / 0.1;
   --glass-glow: 263.4 70% 50.4% / 0.1;
+  --card-border: 263.4 70% 50.4% / 0.15;
 }
 
 @layer base {
@@ -117,15 +159,31 @@
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Performance optimizations */
+  img {
+    content-visibility: auto;
+  }
+
+  .glass-card {
+    contain: layout style paint;
   }
 }
 
+/* Utility classes for performance */
 @utility glass-morphism {
   background-color: hsla(var(--glass-bg));
   backdrop-filter: blur(12px);
   border: 1px solid hsla(var(--glass-border));
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.2);
 }
 
 @utility glass-card {
@@ -134,19 +192,20 @@
   border: 1px solid hsla(var(--glass-border));
   border-radius: 1.5rem;
   padding: 1.5rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  contain: layout style paint;
 }
 
 @utility btn-primary {
-  @apply bg-primary text-primary-foreground px-6 py-3 rounded-full font-semibold transition-all duration-300 hover:opacity-90 active:scale-95;
+  @apply bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:opacity-90 active:scale-95;
 }
 
 @utility nav-link {
-  @apply relative py-1 transition-colors duration-300 inline-block font-bold;
+  @apply relative py-1 transition-colors duration-200 inline-block font-bold;
 
   &::after {
-    content: '';
-    @apply absolute bottom-0 left-0 w-full h-[2px] bg-primary scale-x-0 transition-transform duration-300 ease-out origin-left;
+    content: "";
+    @apply absolute bottom-0 left-0 w-full h-[2px] bg-primary scale-x-0 transition-transform duration-200 ease-out origin-left;
   }
 
   &:hover::after {
@@ -157,7 +216,30 @@
 @utility gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-500 font-bold;
 }
-@utility vertical-text {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+
+/* Animation performance optimizations */
+.animate-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
