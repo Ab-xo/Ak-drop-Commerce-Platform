@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,7 +24,7 @@ interface UserProfileDropdownProps {
   };
 }
 
-const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
+const UserProfileDropdown = memo(({ user }: UserProfileDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
@@ -48,20 +48,37 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
     };
   }, []);
 
-  // Get initials for avatar
-  const getInitials = () => {
-    if (currentUser.name) {
-      const parts = currentUser.name.trim().split(" ");
-      if (parts.length >= 2) {
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-      }
-      return parts[0][0].toUpperCase();
-    }
-    return currentUser.email.charAt(0).toUpperCase();
-  };
+  // Memoize handlers
+  const toggleDropdown = useCallback(() => {
+    setIsOpen(prev => !prev);
+  }, []);
 
-  // Get display name
-  const displayName = currentUser.name || currentUser.email.split("@")[0];
+  const closeDropdown = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    closeDropdown();
+    
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        toast.error("Failed to sign out");
+        return;
+      }
+      
+      toast.success("Signed out successfully");
+      
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 800);
+      
+    } catch (error) {
+      toast.error("Failed to sign out");
+    }
+  }, [closeDropdown]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -70,12 +87,12 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
       ) {
-        setIsOpen(false);
+        closeDropdown();
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
+      if (event.key === "Escape") closeDropdown();
     };
 
     if (isOpen) {
@@ -87,43 +104,22 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, closeDropdown]);
 
-  const handleSignOut = async () => {
-    setIsOpen(false);
-    
-    console.log("Sign out initiated...");
-    
-    try {
-      // Get Supabase client
-      const supabase = createClient();
-      
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error("Sign out error:", error);
-        toast.error("Failed to sign out");
-        return;
+  // Memoize display values
+  const getInitials = useCallback((): string => {
+    const name = currentUser.name?.trim();
+    if (name) {
+      const parts = name.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
       }
-      
-      console.log("Sign out successful, clearing session...");
-      
-      // Show success message
-      toast.success("Signed out successfully");
-      
-      // Wait a moment for the sign-out to complete and toast to show
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Force a full page reload to clear all client state
-      // This ensures the navbar updates and shows the login icon
-      window.location.href = "/";
-      
-    } catch (error) {
-      console.error("Sign out error:", error);
-      toast.error("Failed to sign out");
+      return parts[0].slice(0, 2).toUpperCase();
     }
-  };
+    return currentUser.email.charAt(0).toUpperCase();
+  }, [currentUser.name, currentUser.email]);
+
+  const displayName = currentUser.name || currentUser.email.split("@")[0];
 
   const menuGroups = [
     {
@@ -171,29 +167,28 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
   ];
 
   return (
-    // Use fixed positioning context via relative + high z-index
     <div className="relative" ref={dropdownRef} style={{ zIndex: 9999 }}>
       {/* Avatar Trigger Button */}
       <button
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={toggleDropdown}
         className="relative flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-sm hover:scale-105 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background shadow-lg cursor-pointer"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="true"
         type="button"
       >
-        {user.avatarUrl && !imageError ? (
+        {currentUser.avatarUrl && !imageError ? (
           <img
             src={currentUser.avatarUrl}
             alt={displayName}
             className="w-full h-full rounded-full object-cover"
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
+            loading="lazy"
           />
         ) : (
           getInitials()
         )}
-        {/* Online indicator */}
         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-background" />
       </button>
 
@@ -217,12 +212,10 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
           >
             {/* Profile Header */}
             <div className="relative overflow-hidden">
-              {/* Gradient accent bar */}
               <div className="h-1 w-full bg-gradient-to-r from-primary via-purple-500 to-blue-500" />
 
               <div className="p-5 pb-4">
                 <div className="flex items-center gap-4">
-                  {/* Large Avatar */}
                   <div className="relative flex-shrink-0">
                     <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
                       {currentUser.avatarUrl && !imageError ? (
@@ -240,7 +233,6 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
                     <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-background" />
                   </div>
 
-                  {/* User Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <h3 className="font-semibold text-foreground text-sm truncate">
@@ -273,7 +265,7 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
                     <Link
                       key={ii}
                       href={item.href}
-                      onClick={() => setIsOpen(false)}
+                      onClick={closeDropdown}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-foreground/5 transition-all duration-150 group cursor-pointer"
                     >
                       <div
@@ -332,6 +324,8 @@ const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
       </AnimatePresence>
     </div>
   );
-};
+});
+
+UserProfileDropdown.displayName = 'UserProfileDropdown';
 
 export default UserProfileDropdown;
