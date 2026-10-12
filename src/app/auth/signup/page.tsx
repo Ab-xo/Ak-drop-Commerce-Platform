@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, User, Mail, Lock, UserCheck } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Lock, UserCheck, ArrowRight } from 'lucide-react';
 import { signUp } from '@/lib/auth-actions';
 import { createClient } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 export default function SignUpPage() {
@@ -14,20 +14,17 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (formData: FormData) => {
     setIsLoading(true);
-    
     try {
       const result = await signUp(formData);
-      
       if (result?.error) {
         toast.error(result.error);
       } else {
-        toast.success('Account created successfully! Please check your email to verify your account.');
+        toast.success('Account created! Check your email to verify.');
       }
-    } catch (error) {
+    } catch {
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -40,208 +37,222 @@ export default function SignUpPage() {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) {
-        toast.error(error.message || 'Failed to sign up with Google. Please try again.');
+        toast.error(error.message || 'Failed to sign up with Google.');
         setIsGoogleLoading(false);
       }
-      // On success, Supabase redirects the browser — no need to reset loading
-    } catch (error) {
+    } catch {
       toast.error('Failed to sign up with Google. Please try again.');
       setIsGoogleLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-secondary/20 px-4 py-12">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center justify-center mb-6"
-          >
-            {/* AK ECOMM Logo */}
-            <div className="flex items-center">
-              <div className="relative">
-                <span className="text-3xl font-black tracking-tight text-foreground">A</span>
-                <span className="text-3xl font-black tracking-tight text-foreground relative">
-                  K
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary transform rotate-45"></div>
-                </span>
-              </div>
-              <div className="w-px h-6 bg-border mx-3"></div>
-              <span className="text-xl font-semibold tracking-wide text-foreground/90 uppercase">ECOMM</span>
-            </div>
-          </motion.div>
-          
-          <h1 className="text-2xl font-bold text-foreground mb-2">Create Your Account</h1>
-          <p className="text-foreground/60">Join AK ECOMM and discover premium products</p>
-        </div>
+    <div className="min-h-screen flex">
 
-        {/* Sign Up Form */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="bg-card border border-border rounded-2xl p-8 shadow-lg"
-        >
-          <form action={handleSubmit} className="space-y-6">
-            {/* Full Name */}
-            <div className="space-y-2">
-              <label htmlFor="fullName" className="text-sm font-medium text-foreground">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40" size={20} />
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Enter your full name"
-                />
-              </div>
-            </div>
+      {/* ── Left image panel ── */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <Image
+          src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=90&w=1400"
+          alt="AK Drop streetwear collection"
+          fill
+          priority
+          sizes="50vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/60" />
 
-            {/* Email */}
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40" size={20} />
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Enter your email"
-                />
-              </div>
-            </div>
+        <div className="relative z-10 flex flex-col justify-between h-full p-12">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group w-fit">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black rotate-[-8deg] group-hover:rotate-0 transition-transform duration-300">
+              AK
+            </span>
+            <span className="text-xl font-black tracking-[.18em] uppercase text-white">DROP</span>
+          </Link>
 
-            {/* Username */}
-            <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium text-foreground">
-                Username
-              </label>
-              <div className="relative">
-                <UserCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40" size={20} />
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Choose a username"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40" size={20} />
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Create a password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground/40 hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Confirm Password */}
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40" size={20} />
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Confirm your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground/40 hover:text-foreground transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          {/* Quote */}
+          <div className="space-y-6">
+            <div className="w-12 h-1 bg-primary rounded-full" />
+            <h2 className="text-4xl md:text-5xl font-black italic uppercase text-white leading-tight">
+              JOIN THE<br /><span className="text-primary">DROP</span>
+            </h2>
+            <p className="text-white/70 text-lg font-medium max-w-xs">
+              Create your free account and get access to exclusive drops, ETB pricing, and fast Addis delivery.
+            </p>
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-2 text-primary text-sm font-black uppercase tracking-widest hover:gap-4 transition-all"
             >
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-            </button>
-          </form>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center">
-            <div className="flex-1 border-t border-border"></div>
-            <span className="px-4 text-sm text-foreground/60">or</span>
-            <div className="flex-1 border-t border-border"></div>
+              Browse the catalog <ArrowRight size={16} />
+            </Link>
           </div>
 
-          {/* Google Sign Up */}
-          <button
-            onClick={handleGoogleSignUp}
-            disabled={isGoogleLoading}
-            className="w-full flex items-center justify-center gap-3 bg-background border border-border py-3 px-4 rounded-lg font-medium hover:bg-foreground/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            {isGoogleLoading ? 'Signing up...' : 'Continue with Google'}
-          </button>
+          <p className="text-white/30 text-xs font-bold uppercase tracking-widest">
+            AK Drop — Addis Ababa, Ethiopia
+          </p>
+        </div>
+      </div>
 
-          {/* Sign In Link */}
-          <p className="mt-6 text-center text-sm text-foreground/60">
-            Already have an account?{' '}
-            <Link href="/auth/signin" className="text-primary hover:underline font-medium">
-              Sign in
-            </Link>
+      {/* ── Right form panel ── */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-background px-6 py-12 overflow-y-auto">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md"
+        >
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-3 mb-8">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm rotate-[-8deg]">
+              AK
+            </span>
+            <span className="text-lg font-black tracking-[.18em] uppercase">DROP</span>
+          </div>
+
+          {/* Heading */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-2">
+              Create <span className="text-primary">Account</span>
+            </h1>
+            <p className="text-foreground/50 text-sm">
+              Join AK Drop — free, fast, and built for Addis style.
+            </p>
+          </div>
+
+          {/* Card */}
+          <div className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-primary via-purple-500 to-blue-500" />
+            <div className="p-8 space-y-6">
+
+              {/* Google */}
+              <button
+                onClick={handleGoogleSignUp}
+                disabled={isGoogleLoading}
+                className="w-full flex items-center justify-center gap-3 bg-background border border-border py-3.5 px-4 rounded-xl font-medium text-sm hover:bg-foreground/5 hover:border-primary/40 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isGoogleLoading ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-foreground/20 border-t-primary rounded-full animate-spin" />
+                    Redirecting to Google...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    </svg>
+                    Continue with Google
+                  </>
+                )}
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[11px] text-foreground/40 uppercase tracking-widest font-medium">or</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              {/* Form */}
+              <form action={handleSubmit} className="space-y-4">
+
+                {/* Full name */}
+                <div className="space-y-1.5">
+                  <label htmlFor="fullName" className="text-sm font-semibold text-foreground">Full name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
+                    <input id="fullName" name="fullName" type="text" required
+                      placeholder="Your full name"
+                      className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label htmlFor="email" className="text-sm font-semibold text-foreground">Email address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
+                    <input id="email" name="email" type="email" required
+                      placeholder="your@email.com"
+                      autoComplete="email"
+                      className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
+                  </div>
+                </div>
+
+                {/* Username */}
+                <div className="space-y-1.5">
+                  <label htmlFor="username" className="text-sm font-semibold text-foreground">Username</label>
+                  <div className="relative">
+                    <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
+                    <input id="username" name="username" type="text" required
+                      placeholder="Choose a username"
+                      className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <label htmlFor="password" className="text-sm font-semibold text-foreground">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
+                    <input id="password" name="password" type={showPassword ? 'text' : 'password'} required
+                      placeholder="Create a password"
+                      className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground transition-colors p-1">
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm password */}
+                <div className="space-y-1.5">
+                  <label htmlFor="confirmPassword" className="text-sm font-semibold text-foreground">Confirm password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} />
+                    <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required
+                      placeholder="Confirm your password"
+                      className="w-full pl-10 pr-12 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm outline-none transition-all" />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground transition-colors p-1">
+                      {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-black text-sm uppercase italic tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />Creating account...</>
+                  ) : (
+                    'Create Account'
+                  )}
+                </button>
+              </form>
+
+              <p className="text-center text-sm text-foreground/50">
+                Already have an account?{' '}
+                <Link href="/auth/signin" className="text-primary hover:underline font-bold">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-foreground/30 mt-6">
+            By creating an account, you agree to AK Drop&apos;s Terms &amp; Privacy Policy.
           </p>
         </motion.div>
-      </motion.div>
+      </div>
     </div>
   );
 }
