@@ -119,23 +119,23 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="relative w-full h-[600px] rounded-[3.5rem] overflow-hidden border border-border shadow-2xl">
             <Image
-              src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=2000"
+              src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=85&w=2000"
               alt="Summer Collection"
               fill
               sizes="100vw"
               priority
-              className="object-cover opacity-80 dark:opacity-60"
+              className="object-cover opacity-100 dark:opacity-60 saturate-110 dark:saturate-100"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/30 to-transparent dark:from-background dark:via-background/60 dark:to-transparent" />
             <div className="absolute inset-0 flex items-center px-10 md:px-20">
               <div className="max-w-xl">
                 <span className="bg-primary/20 text-primary border border-primary/20 px-4 py-1 rounded-full text-xs font-black tracking-widest uppercase mb-6 inline-block">
                   Limited Release
                 </span>
-                <h2 className="text-4xl md:text-7xl font-black mb-8 leading-tight italic">
+                <h2 className="text-4xl md:text-7xl font-black mb-8 leading-tight italic drop-shadow-sm">
                   THE SUMMER<br />ESSENTIALS &lsquo;26
                 </h2>
-                <p className="text-foreground/90 text-lg mb-10 font-bold uppercase tracking-tight">
+                <p className="text-foreground/90 text-lg mb-10 font-bold uppercase tracking-tight drop-shadow-sm">
                   Lightweight fabrics, breathable footwear, and versatile accessories.
                   Curated for the ultimate summer performance and style.
                 </p>
