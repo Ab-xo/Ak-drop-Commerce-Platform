@@ -67,30 +67,30 @@ export default function AboutPage() {
         </motion.div>
       </section>
 
-      {/* BUILT FOR YOUR EVERYDAY — image | text | image */}
+      {/* BUILT FOR YOUR EVERYDAY — image left, text right */}
       <section className="py-24 px-4 container mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
           {/* Left image */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative h-[580px] rounded-[3rem] overflow-hidden border border-border shadow-2xl"
+            className="relative h-[600px] rounded-[3rem] overflow-hidden border border-border shadow-2xl"
           >
             <Image
-              src="/img/pexels-photo-8278491.jpeg"
+              src="https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=85&w=1400"
               alt="AK Drop everyday style"
               fill
-              sizes="(max-width: 1024px) 100vw, 33vw"
+              sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover"
             />
           </motion.div>
 
-          {/* Centre text */}
+          {/* Right text */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             className="space-y-8"
           >
@@ -116,31 +116,6 @@ export default function AboutPage() {
                   &quot;Good style should feel personal, practical, and easy to access.&quot;
                 </p>
               </div>
-            </div>
-          </motion.div>
-
-          {/* Right image */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="relative h-[580px] rounded-[3rem] overflow-hidden border border-border shadow-2xl"
-          >
-            <Image
-              src="/img/photo-1600185365926-3a2ce3cdb9eb.avif"
-              alt="AK Drop curated collection"
-              fill
-              sizes="(max-width: 1024px) 100vw, 33vw"
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-transparent" />
-            <div className="absolute bottom-8 left-8 right-8">
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary block mb-2">
-                Curated in Addis
-              </span>
-              <p className="text-xl font-black uppercase italic leading-tight">
-                Style that fits your life
-              </p>
             </div>
           </motion.div>
 
