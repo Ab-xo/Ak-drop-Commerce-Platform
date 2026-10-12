@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,10 +11,46 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import type { UserProfile } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import { signOut } from '@/lib/auth-actions';
-import ProfileSection from './ProfileSection';
-import OrdersSection from './OrdersSection';
-import SettingsSection from './SettingsSection';
-import NotificationsSection from './NotificationsSection';
+import dynamic from 'next/dynamic';
+
+// Lazy load heavy components
+const ProfileSection = dynamic(() => import('./ProfileSection'), {
+  loading: () => <div className="p-8 space-y-4">
+    <div className="h-6 w-48 bg-primary/20 animate-pulse rounded" />
+    <div className="grid gap-4 md:grid-cols-2">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="h-32 bg-secondary/20 animate-pulse rounded-xl" />
+      ))}
+    </div>
+  </div>,
+});
+
+const OrdersSection = dynamic(() => import('./OrdersSection'), {
+  loading: () => <div className="p-8 space-y-4">
+    <div className="h-6 w-32 bg-primary/20 animate-pulse rounded" />
+    {[...Array(3)].map((_, i) => (
+      <div key={i} className="h-24 bg-secondary/20 animate-pulse rounded-xl" />
+    ))}
+  </div>,
+});
+
+const NotificationsSection = dynamic(() => import('./NotificationsSection'), {
+  loading: () => <div className="p-8 space-y-4">
+    <div className="h-6 w-36 bg-primary/20 animate-pulse rounded" />
+    {[...Array(4)].map((_, i) => (
+      <div key={i} className="h-20 bg-secondary/20 animate-pulse rounded-xl" />
+    ))}
+  </div>,
+});
+
+const SettingsSection = dynamic(() => import('./SettingsSection'), {
+  loading: () => <div className="p-8 space-y-4">
+    <div className="h-6 w-40 bg-primary/20 animate-pulse rounded" />
+    {[...Array(3)].map((_, i) => (
+      <div key={i} className="h-32 bg-secondary/20 animate-pulse rounded-xl" />
+    ))}
+  </div>,
+});
 
 interface AccountDashboardProps {
   user: SupabaseUser;
@@ -69,12 +105,7 @@ export default function AccountDashboard({ user, profile, orders }: AccountDashb
   };
 
   // Get user display name — prefer profile name, then Google metadata, then email prefix
-  const displayName =
-    currentProfile?.full_name ||
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
-    user.email?.split('@')[0] ||
-    'User';
+  
 
   // Get user initials for avatar
   const getInitials = () => {
@@ -86,39 +117,52 @@ export default function AccountDashboard({ user, profile, orders }: AccountDashb
   };
 
   // Avatar URL (Google OAuth provides one)
-  const avatarUrl =
-    currentProfile?.avatar_url || user.user_metadata?.avatar_url || null;
 
-  const totalSpent = orders.reduce((sum, order) => sum + (order.total_amount || order.order_cost || 0), 0);
-  const memberSince = new Date(user.created_at || '').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const isVerified = !!user.email_confirmed_at;
+  // Memoize expensive calculations
+  const stats = useMemo(() => {
+    const totalSpent = orders.reduce((sum, order) => sum + (order.total_amount || order.order_cost || 0), 0);
+    const memberSince = new Date(user.created_at || '').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const isVerified = !!user.email_confirmed_at;
 
-  const stats = [
-    {
-      label: 'Total Orders',
-      value: orders.length.toString(),
-      icon: Package,
-      color: 'from-blue-500/20 to-blue-600/10',
-      iconColor: 'text-blue-400',
-      trend: '+2 this month',
-    },
-    {
-      label: 'Total Spent',
-      value: `$${totalSpent.toFixed(2)}`,
-      icon: TrendingUp,
-      color: 'from-green-500/20 to-green-600/10',
-      iconColor: 'text-green-400',
-      trend: 'Lifetime value',
-    },
-    {
-      label: 'Member Since',
-      value: memberSince,
-      icon: Clock,
-      color: 'from-purple-500/20 to-purple-600/10',
-      iconColor: 'text-purple-400',
-      trend: isVerified ? '✓ Verified' : '⚠ Unverified',
-    },
-  ];
+    return [
+      {
+        label: 'Total Orders',
+        value: orders.length.toString(),
+        icon: Package,
+        color: 'from-blue-500/20 to-blue-600/10',
+        iconColor: 'text-blue-400',
+        trend: '+2 this month',
+      },
+      {
+        label: 'Total Spent',
+        value: `$${totalSpent.toFixed(2)}`,
+        icon: TrendingUp,
+        color: 'from-green-500/20 to-green-600/10',
+        iconColor: 'text-green-400',
+        trend: 'Lifetime value',
+      },
+      {
+        label: 'Member Since',
+        value: memberSince,
+        icon: Clock,
+        color: 'from-purple-500/20 to-purple-600/10',
+        iconColor: 'text-purple-400',
+        trend: isVerified ? '✓ Verified' : '⚠ Unverified',
+      },
+    ];
+  }, [orders, user]);
+
+  // Memoize display values
+  const { displayName, avatarUrl, isVerified, memberSince } = useMemo(() => ({
+    displayName: currentProfile?.full_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split('@')[0] ||
+      'User',
+    avatarUrl: currentProfile?.avatar_url || user.user_metadata?.avatar_url || null,
+    isVerified: !!user.email_confirmed_at,
+    memberSince: new Date(user.created_at || '').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+  }), [currentProfile, user]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/10 pt-28 pb-12 px-4">
@@ -285,18 +329,20 @@ export default function AccountDashboard({ user, profile, orders }: AccountDashb
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.2, ease: 'easeInOut' }}
               >
-                {activeTab === 'profile' && (
-                  <ProfileSection user={user} profile={currentProfile} />
-                )}
-                {activeTab === 'orders' && (
-                  <OrdersSection orders={orders} />
-                )}
-                {activeTab === 'notifications' && (
-                  <NotificationsSection />
-                )}
-                {activeTab === 'settings' && (
-                  <SettingsSection user={user} profile={currentProfile} />
-                )}
+                <Suspense fallback={<div className="h-32 bg-secondary/20 animate-pulse rounded-xl" />}>
+                  {activeTab === 'profile' && (
+                    <ProfileSection user={user} profile={currentProfile} />
+                  )}
+                  {activeTab === 'orders' && (
+                    <OrdersSection orders={orders} />
+                  )}
+                  {activeTab === 'notifications' && (
+                    <NotificationsSection />
+                  )}
+                  {activeTab === 'settings' && (
+                    <SettingsSection user={user} profile={currentProfile} />
+                  )}
+                </Suspense>
               </motion.div>
             </AnimatePresence>
           </div>
