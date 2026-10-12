@@ -119,16 +119,25 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="group relative w-full h-[600px] rounded-[3.5rem] overflow-hidden border border-border shadow-2xl cursor-pointer">
 
-            {/* Animated scanning bar — visible on hover */}
-            <div className="absolute inset-0 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              {/* Top sweep bar */}
-              <div className="absolute left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-bar" />
-              {/* Corner accent lines */}
+            {/* Animated scanning overlay — dark mode only, visible on hover */}
+            <div className="absolute inset-0 z-20 pointer-events-none opacity-0 dark:group-hover:opacity-100 transition-opacity duration-300">
+
+              {/* TOP bar — sweeps left→right */}
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-bar-x" />
+              {/* BOTTOM bar — sweeps right→left */}
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-l from-transparent via-primary to-transparent animate-scan-bar-x" />
+              {/* LEFT bar — sweeps top→bottom */}
+              <div className="absolute top-0 bottom-0 left-0 w-[3px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-bar-y" />
+              {/* RIGHT bar — sweeps bottom→top */}
+              <div className="absolute top-0 bottom-0 right-0 w-[3px] bg-gradient-to-t from-transparent via-primary to-transparent animate-scan-bar-y" />
+
+              {/* Corner accent brackets */}
               <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-primary rounded-tl-[3.5rem]" />
               <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-primary rounded-tr-[3.5rem]" />
               <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-primary rounded-bl-[3.5rem]" />
               <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-primary rounded-br-[3.5rem]" />
-              {/* Primary glow pulse ring */}
+
+              {/* Pulse ring */}
               <div className="absolute inset-0 rounded-[3.5rem] ring-2 ring-primary/40 animate-pulse-ring" />
             </div>
             <Image

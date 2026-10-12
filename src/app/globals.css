@@ -57,10 +57,18 @@
 
   --animate-marquee: marquee 20s linear infinite;
 
-  @keyframes scan-bar {
-    0%   { top: 0%; opacity: 1; }
-    80%  { opacity: 1; }
-    100% { top: 100%; opacity: 0; }
+  @keyframes scan-bar-x {
+    0%   { transform: translateX(-100%); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+  }
+
+  @keyframes scan-bar-y {
+    0%   { transform: translateY(-100%); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(100%); opacity: 0; }
   }
 
   @keyframes pulse-ring {
@@ -68,7 +76,8 @@
     50%       { box-shadow: 0 0 0 8px hsl(var(--primary) / 0); }
   }
 
-  --animate-scan-bar: scan-bar 2s ease-in-out infinite;
+  --animate-scan-bar-x: scan-bar-x 2.4s ease-in-out infinite;
+  --animate-scan-bar-y: scan-bar-y 2.4s ease-in-out infinite 1.2s;
   --animate-pulse-ring: pulse-ring 1.8s ease-in-out infinite;
 }
 
