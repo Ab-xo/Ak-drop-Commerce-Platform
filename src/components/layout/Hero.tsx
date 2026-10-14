@@ -39,9 +39,9 @@ export default function Hero() {
     <section ref={heroRef} className="relative flex min-h-[78svh] items-center overflow-hidden bg-background sm:min-h-[86svh] lg:h-screen">
       {heroSlides.map((item, index) => (
         <div key={item.id} className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? "opacity-100" : "opacity-0"}`}>
-          <Image src={item.image} alt={`AK Drop — ${item.tag}`} fill priority={index === 0} sizes="100vw" className="object-cover object-center brightness-[0.68] contrast-[1.12] saturate-[1.16] dark:brightness-[0.5] dark:saturate-100" />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.74)_0%,rgba(0,0,0,0.46)_48%,rgba(0,0,0,0.2)_100%)] dark:bg-[linear-gradient(90deg,hsl(var(--background)/0.96)_0%,hsl(var(--background)/0.68)_48%,transparent_100%)]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 dark:from-background/40 dark:to-background/10" />
+          <Image src={item.image} alt={`AK Drop — ${item.tag}`} fill priority={index === 0} sizes="100vw" className="object-cover object-center brightness-[0.82] contrast-[1.08] saturate-[1.08] dark:brightness-[0.5] dark:saturate-100" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.58)_0%,rgba(0,0,0,0.32)_48%,rgba(0,0,0,0.08)_100%)] dark:bg-[linear-gradient(90deg,hsl(var(--background)/0.96)_0%,hsl(var(--background)/0.68)_48%,transparent_100%)]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/5 dark:from-background/40 dark:to-background/10" />
         </div>
       ))}
 

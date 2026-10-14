@@ -47,8 +47,6 @@ export async function GET(request: NextRequest) {
       avatar_url: avatarUrl,
       phone: metadata.phone || metadata.phone_number || null,
       username: existingProfile?.username || createUsername(data.user.email, fullName),
-      is_verified: true,
-      is_active: true,
     };
     const { error: profileError } = await supabase.from('user_profiles').upsert(profileData, { onConflict: 'id' });
     if (profileError) console.error('OAuth profile upsert error:', profileError.message);

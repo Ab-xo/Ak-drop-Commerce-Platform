@@ -41,8 +41,8 @@ AK Drop is a modern full-stack marketplace built with **Next.js 16**, **Supabase
 ### 1. Clone and checkout
 
 ```bash
-git clone https://github.com/Ab-xo/Ak-Footwear-Ecommerce.git
-cd Ak-Footwear-Ecommerce
+git clone https://github.com/Ab-xo/Ak-drop-Commerce-Platform.git
+cd Ak-drop-Commerce-Platform
 git checkout feat/ak-drop
 ```
 
@@ -54,19 +54,24 @@ npm install
 
 ### 3. Set up environment variables
 
-```bash
-cp .env.example .env.local
+```powershell
+Copy-Item .env.example .env.local
 ```
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
+Replace the sample Supabase URL and key with the project URL and anon/publishable
+key from **Supabase Dashboard → Project Settings → API**. Do not leave the
+sample values in place. Restart `npm run dev` after changing `.env.local`.
+
+The storefront reads products from Supabase. Ensure the database schema and
+product data are present in the configured project before opening the shop.
 
 ### 4. Apply the database schema
 
-Run `complete-schema.sql` in your Supabase project's SQL Editor.
+Run [`database/setup.sql`](./database/setup.sql) in your Supabase project's SQL
+Editor. It is the single canonical schema-and-catalog setup file; it creates the
+profile, catalog, order, and commerce tables, applies customer-safe RLS policies,
+and seeds the current multi-category sample catalog. The included sample prices
+are in ETB. It is designed to be rerun and does not delete existing table data.
 
 ### 5. Run the dev server
 
@@ -81,6 +86,9 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Project Structure
 
 ```
+database/
+└── setup.sql              # Canonical Supabase schema, policies, and catalog seed
+PROJECT_ROADMAP.md         # Legacy comparison and incremental delivery plan
 src/
 ├── app/                  # Next.js App Router pages
 │   ├── page.tsx          # Home / landing

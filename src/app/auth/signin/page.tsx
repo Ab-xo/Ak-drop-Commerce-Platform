@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import toast from 'react-hot-toast';

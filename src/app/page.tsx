@@ -4,7 +4,7 @@ import Hero from "@/components/layout/Hero";
 import ProductCard from "@/components/ui/ProductCard";
 import {
   ArrowRight, ChevronRight, ShieldCheck, ShoppingBag,
-  Truck, Zap, Tag, Star, RefreshCw, Headphones,
+  Truck, Tag, Star, RefreshCw, Headphones,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -126,6 +126,7 @@ export default function Home() {
   const [dealProducts, setDealProducts]           = useState<Product[]>([]);
   const [categories, setCategories]               = useState<Category[]>([]);
   const [loading, setLoading]                     = useState(true);
+  const [loadError, setLoadError]                 = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -143,6 +144,9 @@ export default function Home() {
           .slice(0, 6)
       );
       setCategories(cats);
+    }).catch((error) => {
+      console.error("Failed to load storefront data:", error);
+      setLoadError(true);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -156,6 +160,12 @@ export default function Home() {
 
       {/* ── Hero ── */}
       <Hero />
+
+      {loadError && (
+        <p role="alert" className="bg-red-500/10 px-4 py-3 text-center text-sm text-red-400">
+          Store products could not be loaded. Check the Supabase URL, public key, and database connection, then refresh.
+        </p>
+      )}
 
       {/* ── Ticker ── */}
       <Ticker />

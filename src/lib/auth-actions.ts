@@ -20,15 +20,11 @@ export async function signUp(formData: FormData) {
   const validatedFields = signUpSchema.safeParse({ fullName: String(formData.get("fullName") ?? ""), email: String(formData.get("email") ?? ""), username: String(formData.get("username") ?? "").toLowerCase(), password: String(formData.get("password") ?? ""), confirmPassword: String(formData.get("confirmPassword") ?? "") });
   if (!validatedFields.success) return { error: validatedFields.error.issues[0].message };
   const { fullName, email, username, password } = validatedFields.data;
-  const { data: existingUser, error: lookupError } = await supabase.from("user_profiles").select("id").eq("username", username).maybeSingle();
+  const { data: existingUser, error: lookupError } = await supabase.from("user_profiles").select("username").eq("username", username).maybeSingle();
   if (lookupError) return { error: "Unable to check username availability. Please try again." };
   if (existingUser) return { error: "Username is already taken. Please choose another." };
-  const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName, username } } });
+  const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName, username } } });
   if (error) return { error: error.message.toLowerCase().includes("already registered") ? "An account with this email already exists. Try signing in." : error.message };
-  if (data.user) {
-    const { error: profileError } = await supabase.from("user_profiles").upsert({ id: data.user.id, email: data.user.email, full_name: fullName, username, is_active: true }, { onConflict: "id" });
-    if (profileError) console.error("Profile creation error:", profileError.message);
-  }
   redirect("/auth/verify-email");
 }
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ProductCard from "@/components/ui/ProductCard";
 import { Product, Category } from "@/types";
-import { Search, SlidersHorizontal, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Search, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { getProducts, getCategories } from "@/utils/supabaseFetch";
 import { useSearchParams } from "next/navigation";
@@ -20,12 +20,18 @@ const ShopPage = () => {
     const [sortBy, setSortBy] = useState("newest");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const itemsPerPage = 6;
 
     useEffect(() => {
         async function initShop() {
-            const cats = await getCategories();
-            setCategories(cats);
+            try {
+                const cats = await getCategories();
+                setCategories(cats);
+            } catch (error) {
+                console.error("Failed to load categories:", error);
+                setLoadError(true);
+            }
         }
         initShop();
     }, []);
@@ -33,12 +39,14 @@ const ShopPage = () => {
     useEffect(() => {
         async function loadProducts() {
             setLoading(true);
+            setLoadError(false);
             try {
                 const data = await getProducts(activeCategory);
                 setProducts(data);
                 setCurrentPage(1); // Reset to page 1 on filter change
             } catch (error) {
                 console.error("Failed to load products:", error);
+                setLoadError(true);
             } finally {
                 setLoading(false);
             }
@@ -161,6 +169,10 @@ const ShopPage = () => {
                                 {[1, 2, 3, 4, 5, 6].map(i => (
                                     <div key={i} className="h-96 rounded-3xl bg-foreground/5 animate-pulse border border-border" />
                                 ))}
+                            </div>
+                        ) : loadError ? (
+                            <div role="alert" className="rounded-3xl border border-red-500/30 bg-red-500/10 p-8 text-center text-red-400">
+                                Products could not be loaded. Check the Supabase configuration and database connection, then refresh.
                             </div>
                         ) : paginatedProducts.length > 0 ? (
                             <>

@@ -44,7 +44,7 @@ export default function AccountDashboard({ user, profile, orders }: AccountDashb
   const avatarUrl = currentProfile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
   const memberSince = formatDate(currentProfile?.created_at || user.created_at);
   const verified = Boolean(user.email_confirmed_at || currentProfile?.is_verified);
-  const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'AK';
+  const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part: string) => part[0]).join('').toUpperCase() || 'AK';
 
   const stats = useMemo(() => {
     const totalSpent = orders.reduce((sum, order) => sum + Number(order.total_amount || order.order_cost || 0), 0);

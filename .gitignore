@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -65,11 +66,6 @@ SETUP.md
 SETUP_DATABASE.md
 SIGNOUT_IMPLEMENTATION.md
 USER_PROFILE_DROPDOWN.md
-CRITICAL_FIX_USER_PROFILES.sql
-fix-google-oauth-profile-creation.sql
-user-schema.sql
-supabase_schema.sql
-
 # Test / debug files
 create-test-user.js
 test-supabase-direct.html

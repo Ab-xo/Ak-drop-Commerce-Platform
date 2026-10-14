@@ -83,8 +83,8 @@ export default function Navbar() {
     >
       <div className="container mx-auto px-4 md:px-8 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group" aria-label="AK Drop home">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-lg rotate-[-8deg] group-hover:rotate-0 transition-transform">AK</span>
-          <span className="text-xl font-black tracking-[.18em] uppercase">DROP</span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-lg rotate-[-8deg] group-hover:rotate-0 transition-transform duration-300">AK</span>
+          <span className="text-xl font-black tracking-[.18em] uppercase group-hover:text-primary transition-colors duration-200">DROP</span>
         </Link>
         <div className="hidden md:flex items-center gap-7">
           {navLinks.map((link) => <Link key={link.name} href={link.href} className="text-sm hover:text-primary nav-link">{link.name}</Link>)}
