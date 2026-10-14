@@ -90,8 +90,8 @@ screens do not yet have a completed order-placement/payment path.
 
 **Acceptance criteria**
 
-- A clean Supabase setup can apply `database/setup.sql` and load catalog data
-  without relying on ambiguous script ordering.
+- A clean Supabase setup can apply `database/setup.sql` without relying on
+  ambiguous script ordering; catalog data is managed separately from schema.
 - Product, order, and payment amounts have documented units and currency.
 - Tests cover zero stock, inactive products, malformed prices, and unavailable
   variants.
@@ -312,8 +312,8 @@ possible.
 - `src/components/` — shared layout, catalog, account, cart, and provider UI.
 - `src/lib/`, `src/store/`, `src/types/`, `src/utils/` — backend clients,
   state, domain types, and shared data helpers.
-- `database/setup.sql` — the sole SQL setup file for schema, access policies,
-  and the multi-category sample catalog.
+- `database/setup.sql` — the sole SQL setup file for schema and access policies;
+  it intentionally contains no sample catalog data.
 - `PROJECT_ROADMAP.md` — capability review, priorities, scope, and acceptance
   criteria for future implementation.
 - `.env.example` — required environment-variable template; real local secrets

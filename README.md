@@ -68,10 +68,11 @@ product data are present in the configured project before opening the shop.
 ### 4. Apply the database schema
 
 Run [`database/setup.sql`](./database/setup.sql) in your Supabase project's SQL
-Editor. It is the single canonical schema-and-catalog setup file; it creates the
-profile, catalog, order, and commerce tables, applies customer-safe RLS policies,
-and seeds the current multi-category sample catalog. The included sample prices
-are in ETB. It is designed to be rerun and does not delete existing table data.
+Editor. It is the single canonical setup file; it creates the profile, catalog,
+order, and commerce tables and applies customer-safe RLS policies. It contains
+no sample product/category data, so populate the catalog with your store's data
+before opening the shop. The schema is designed to be rerun and does not delete
+existing table data.
 
 ### 5. Run the dev server
 
@@ -87,7 +88,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```
 database/
-└── setup.sql              # Canonical Supabase schema, policies, and catalog seed
+└── setup.sql              # Canonical Supabase schema and access policies
 PROJECT_ROADMAP.md         # Legacy comparison and incremental delivery plan
 src/
 ├── app/                  # Next.js App Router pages
