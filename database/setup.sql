@@ -112,6 +112,11 @@ CREATE TABLE IF NOT EXISTS public.orders (
     order_number TEXT UNIQUE NOT NULL,
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'cancelled')),
     total_amount DECIMAL(10,2) NOT NULL,
+    subtotal_amount DECIMAL(10,2) NOT NULL,
+    delivery_fee_amount DECIMAL(10,2),
+    total_is_final BOOLEAN NOT NULL DEFAULT FALSE,
+    idempotency_key UUID,
+    request_fingerprint TEXT,
     currency TEXT DEFAULT 'ETB',
     shipping_address JSONB,
     billing_address JSONB,
@@ -121,6 +126,23 @@ CREATE TABLE IF NOT EXISTS public.orders (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Keep existing order totals as historical subtotals while making new orders
+-- explicitly provisional until the delivery fee is confirmed.
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS subtotal_amount DECIMAL(10,2);
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS delivery_fee_amount DECIMAL(10,2);
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS total_is_final BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS idempotency_key UUID;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS request_fingerprint TEXT;
+UPDATE public.orders SET subtotal_amount = total_amount WHERE subtotal_amount IS NULL;
+UPDATE public.orders
+SET total_is_final = FALSE
+WHERE delivery_fee_amount IS NULL AND total_is_final = TRUE;
+ALTER TABLE public.orders ALTER COLUMN subtotal_amount SET NOT NULL;
+ALTER TABLE public.orders ALTER COLUMN total_is_final SET DEFAULT FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_user_idempotency
+    ON public.orders(user_id, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
 
 -- Enable RLS for orders
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
@@ -286,6 +308,342 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_product ON public.order_items(product_id);
 
+-- Customer-visible order notifications; inserts are created by trusted
+-- database functions/triggers, while customers may manage read/delete state.
+CREATE TABLE IF NOT EXISTS public.user_notifications (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+    type TEXT NOT NULL DEFAULT 'order' CHECK (type IN ('order', 'promo', 'system')),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_notifications_unread
+    ON public.user_notifications(user_id, is_read, created_at DESC);
+
+ALTER TABLE public.user_notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own notifications" ON public.user_notifications;
+CREATE POLICY "Users can view their own notifications" ON public.user_notifications
+    FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own notification read state" ON public.user_notifications;
+CREATE POLICY "Users can update their own notification read state" ON public.user_notifications
+    FOR UPDATE USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own notifications" ON public.user_notifications;
+CREATE POLICY "Users can delete their own notifications" ON public.user_notifications
+    FOR DELETE USING (auth.uid() = user_id);
+
+REVOKE ALL ON TABLE public.user_notifications FROM anon, authenticated;
+GRANT SELECT, DELETE ON TABLE public.user_notifications TO authenticated;
+GRANT UPDATE (is_read) ON TABLE public.user_notifications TO authenticated;
+
+INSERT INTO public.user_notifications (user_id, order_id, type, title, message, created_at)
+SELECT orders.user_id,
+       orders.id,
+       'order',
+       'Order received',
+       'Your order #' || orders.order_number || ' has been placed and is awaiting confirmation.',
+       orders.created_at
+FROM public.orders AS orders
+WHERE orders.user_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM public.user_notifications AS notifications
+      WHERE notifications.order_id = orders.id
+        AND notifications.title = 'Order received'
+  );
+
+-- Create an authenticated order and decrement tracked inventory atomically.
+CREATE OR REPLACE FUNCTION public.create_customer_order(
+    p_idempotency_key UUID,
+    p_items JSONB,
+    p_shipping_address JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_user_id UUID := auth.uid();
+    v_fingerprint TEXT;
+    v_existing_fingerprint TEXT;
+    v_existing_subtotal DECIMAL(10,2);
+    v_existing_status TEXT;
+    v_existing_payment_status TEXT;
+    v_order_id UUID;
+    v_order_number TEXT;
+    v_subtotal DECIMAL(10,2) := 0;
+    v_product RECORD;
+    v_item RECORD;
+    v_quantity INTEGER;
+    v_unit_price DECIMAL(10,2);
+BEGIN
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_AUTH_REQUIRED', ERRCODE = '28000';
+    END IF;
+    INSERT INTO public.user_profiles (id, full_name, email)
+    SELECT id,
+           COALESCE(raw_user_meta_data->>'full_name', raw_user_meta_data->>'name'),
+           email
+    FROM auth.users
+    WHERE id = v_user_id
+    ON CONFLICT (id) DO NOTHING;
+    IF p_idempotency_key IS NULL
+       OR p_items IS NULL
+       OR jsonb_typeof(p_items) <> 'array' THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ITEMS', ERRCODE = '22023';
+    END IF;
+    IF jsonb_array_length(p_items) < 1 OR jsonb_array_length(p_items) > 30 THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ITEMS', ERRCODE = '22023';
+    END IF;
+    IF p_shipping_address IS NULL
+       OR jsonb_typeof(p_shipping_address) <> 'object'
+       OR length(trim(COALESCE(p_shipping_address->>'full_name', ''))) NOT BETWEEN 2 AND 100
+       OR length(trim(COALESCE(p_shipping_address->>'email', ''))) NOT BETWEEN 3 AND 254
+       OR length(trim(COALESCE(p_shipping_address->>'phone', ''))) NOT BETWEEN 7 AND 30
+       OR length(trim(COALESCE(p_shipping_address->>'country', ''))) NOT BETWEEN 2 AND 80
+       OR length(trim(COALESCE(p_shipping_address->>'address', ''))) NOT BETWEEN 5 AND 300
+       OR length(trim(COALESCE(p_shipping_address->>'city', ''))) NOT BETWEEN 2 AND 80
+       OR length(COALESCE(p_shipping_address->>'region', '')) > 80
+       OR length(COALESCE(p_shipping_address->>'postal_code', '')) > 20
+       OR length(COALESCE(p_shipping_address->>'delivery_instructions', '')) > 500 THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ADDRESS', ERRCODE = '22023';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(p_items) AS line(value)
+        WHERE jsonb_typeof(line.value) <> 'object'
+           OR COALESCE(line.value->>'product_id', '') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           OR COALESCE(line.value->>'quantity', '') !~ '^[1-9][0-9]{0,2}$'
+           OR COALESCE(line.value->>'expected_unit_price', '') !~ '^[0-9]+(\.[0-9]{1,2})?$'
+    ) THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ITEMS', ERRCODE = '22023';
+    END IF;
+    IF (
+        SELECT count(*) <> count(DISTINCT (line.value->>'product_id')::UUID)
+        FROM jsonb_array_elements(p_items) AS line(value)
+    ) THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ITEMS', ERRCODE = '22023';
+    END IF;
+    IF length(trim(COALESCE(p_shipping_address->>'email', ''))) > 254
+       OR trim(p_shipping_address->>'email') !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$'
+       OR trim(p_shipping_address->>'phone') !~ '^\+?[0-9 ()-]{7,30}$' THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ADDRESS', ERRCODE = '22023';
+    END IF;
+
+    v_fingerprint := md5(p_items::TEXT || '|' || p_shipping_address::TEXT);
+
+    SELECT id, order_number, request_fingerprint, subtotal_amount, status, payment_status
+    INTO v_order_id, v_order_number, v_existing_fingerprint, v_existing_subtotal,
+         v_existing_status, v_existing_payment_status
+    FROM public.orders
+    WHERE user_id = v_user_id AND idempotency_key = p_idempotency_key;
+    IF v_order_id IS NOT NULL THEN
+        IF v_existing_fingerprint IS DISTINCT FROM v_fingerprint THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_IDEMPOTENCY_CONFLICT', ERRCODE = '22023';
+        END IF;
+        RETURN jsonb_build_object(
+            'id', v_order_id,
+            'order_number', v_order_number,
+            'subtotal_amount', v_existing_subtotal,
+            'total_is_final', FALSE,
+            'status', v_existing_status,
+            'payment_status', v_existing_payment_status
+        );
+    END IF;
+
+    -- Lock each product in a stable order; recheck idempotency before inventory.
+    FOR v_item IN
+        SELECT (line.value->>'product_id')::UUID AS product_id
+        FROM jsonb_array_elements(p_items) AS line(value)
+        ORDER BY (line.value->>'product_id')
+    LOOP
+        SELECT id INTO v_product
+        FROM public.products
+        WHERE id = v_item.product_id
+        FOR UPDATE;
+    END LOOP;
+
+    SELECT id, order_number, request_fingerprint, subtotal_amount, status, payment_status
+    INTO v_order_id, v_order_number, v_existing_fingerprint, v_existing_subtotal,
+         v_existing_status, v_existing_payment_status
+    FROM public.orders
+    WHERE user_id = v_user_id AND idempotency_key = p_idempotency_key;
+    IF v_order_id IS NOT NULL THEN
+        IF v_existing_fingerprint IS DISTINCT FROM v_fingerprint THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_IDEMPOTENCY_CONFLICT', ERRCODE = '22023';
+        END IF;
+        RETURN jsonb_build_object(
+            'id', v_order_id,
+            'order_number', v_order_number,
+            'subtotal_amount', v_existing_subtotal,
+            'total_is_final', FALSE,
+            'status', v_existing_status,
+            'payment_status', v_existing_payment_status
+        );
+    END IF;
+
+    FOR v_item IN
+        SELECT (line.value->>'product_id')::UUID AS product_id,
+               (line.value->>'quantity')::INTEGER AS quantity,
+               (line.value->>'expected_unit_price')::DECIMAL(10,2) AS expected_unit_price
+        FROM jsonb_array_elements(p_items) AS line(value)
+        ORDER BY (line.value->>'product_id')
+    LOOP
+        SELECT id, name, slug, price, sku, quantity, track_quantity, images, is_active
+        INTO v_product
+        FROM public.products
+        WHERE id = v_item.product_id;
+
+        IF NOT FOUND OR v_product.is_active IS DISTINCT FROM TRUE THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_PRODUCT_UNAVAILABLE', ERRCODE = '22023';
+        END IF;
+        IF v_product.price IS NULL OR v_product.price < 0 THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_PRODUCT_UNAVAILABLE', ERRCODE = '22023';
+        END IF;
+        IF v_product.price <> v_item.expected_unit_price THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_PRICE_CHANGED', ERRCODE = '22023';
+        END IF;
+        IF COALESCE(v_product.track_quantity, TRUE)
+           AND COALESCE(v_product.quantity, 0) < v_item.quantity THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_STOCK_CHANGED', ERRCODE = '22023';
+        END IF;
+        IF v_product.price > (99999999.99 - v_subtotal) / v_item.quantity THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_TOTAL_LIMIT', ERRCODE = '22023';
+        END IF;
+        v_subtotal := v_subtotal + (v_product.price * v_item.quantity);
+    END LOOP;
+
+    INSERT INTO public.orders (
+        user_id, order_number, status, total_amount, subtotal_amount,
+        delivery_fee_amount, total_is_final, idempotency_key, request_fingerprint,
+        currency, shipping_address, payment_method, payment_status
+    )
+    VALUES (
+        v_user_id,
+        'AKD-' || upper(substr(replace(gen_random_uuid()::TEXT, '-', ''), 1, 12)),
+        'pending',
+        v_subtotal,
+        v_subtotal,
+        NULL,
+        FALSE,
+        p_idempotency_key,
+        v_fingerprint,
+        'ETB',
+        p_shipping_address,
+        'stripe',
+        'pending'
+    )
+    ON CONFLICT (user_id, idempotency_key)
+        WHERE idempotency_key IS NOT NULL
+        DO NOTHING
+    RETURNING id, order_number INTO v_order_id, v_order_number;
+
+    IF v_order_id IS NULL THEN
+        SELECT id, order_number, request_fingerprint, subtotal_amount, status, payment_status
+        INTO v_order_id, v_order_number, v_existing_fingerprint, v_existing_subtotal,
+             v_existing_status, v_existing_payment_status
+        FROM public.orders
+        WHERE user_id = v_user_id AND idempotency_key = p_idempotency_key;
+        IF v_existing_fingerprint IS DISTINCT FROM v_fingerprint THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_IDEMPOTENCY_CONFLICT', ERRCODE = '22023';
+        END IF;
+        RETURN jsonb_build_object(
+            'id', v_order_id,
+            'order_number', v_order_number,
+            'subtotal_amount', v_existing_subtotal,
+            'total_is_final', FALSE,
+            'status', v_existing_status,
+            'payment_status', v_existing_payment_status
+        );
+    END IF;
+
+    FOR v_item IN
+        SELECT (line.value->>'product_id')::UUID AS product_id,
+               (line.value->>'quantity')::INTEGER AS quantity
+        FROM jsonb_array_elements(p_items) AS line(value)
+        ORDER BY (line.value->>'product_id')
+    LOOP
+        UPDATE public.products
+        SET quantity = quantity - v_item.quantity
+        WHERE id = v_item.product_id AND COALESCE(track_quantity, TRUE);
+
+        SELECT id, name, slug, price, sku, images
+        INTO v_product
+        FROM public.products
+        WHERE id = v_item.product_id;
+        v_unit_price := v_product.price;
+
+        INSERT INTO public.order_items (
+            order_id, product_id, product_name, product_slug, product_image,
+            product_sku, quantity, unit_price, total_price
+        )
+        VALUES (
+            v_order_id, v_item.product_id, v_product.name, v_product.slug,
+            v_product.images->>0, v_product.sku, v_item.quantity,
+            v_unit_price, v_unit_price * v_item.quantity
+        );
+    END LOOP;
+
+    INSERT INTO public.user_notifications (user_id, order_id, type, title, message)
+    VALUES (
+        v_user_id,
+        v_order_id,
+        'order',
+        'Payment pending',
+        'Your order #' || v_order_number || ' is awaiting Stripe payment.'
+    );
+
+    RETURN jsonb_build_object(
+        'id', v_order_id,
+        'order_number', v_order_number,
+        'subtotal_amount', v_subtotal,
+        'total_is_final', FALSE,
+        'status', 'pending',
+        'payment_status', 'pending'
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.notify_customer_order_status()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF NEW.status IS DISTINCT FROM OLD.status THEN
+        INSERT INTO public.user_notifications (user_id, order_id, type, title, message)
+        VALUES (
+            NEW.user_id,
+            NEW.id,
+            'order',
+            'Order ' || replace(NEW.status, '_', ' '),
+            'Your order #' || NEW.order_number || ' is now ' || replace(NEW.status, '_', ' ') || '.'
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS notify_customer_order_status ON public.orders;
+CREATE TRIGGER notify_customer_order_status
+    AFTER UPDATE OF status ON public.orders
+    FOR EACH ROW
+    WHEN (OLD.status IS DISTINCT FROM NEW.status)
+    EXECUTE FUNCTION public.notify_customer_order_status();
+
+REVOKE ALL ON FUNCTION public.create_customer_order(UUID, JSONB, JSONB) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.notify_customer_order_status() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_customer_order(UUID, JSONB, JSONB) TO authenticated;
+
 -- 2. PAYMENTS TABLE
 -- Stores payment transactions (replaces PHP payments table)
 CREATE TABLE IF NOT EXISTS public.payments (
@@ -293,6 +651,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
     order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE NOT NULL,
     user_id UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
     stripe_payment_intent_id TEXT UNIQUE,
+    stripe_checkout_session_id TEXT UNIQUE,
     stripe_charge_id TEXT,
     amount DECIMAL(10,2) NOT NULL CHECK (amount >= 0),
     currency TEXT DEFAULT 'ETB' NOT NULL,
@@ -310,6 +669,173 @@ CREATE INDEX IF NOT EXISTS idx_payments_order ON public.payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user ON public.payments(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON public.payments(status);
 CREATE INDEX IF NOT EXISTS idx_payments_stripe_intent ON public.payments(stripe_payment_intent_id);
+ALTER TABLE public.payments
+    ADD COLUMN IF NOT EXISTS stripe_checkout_session_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_stripe_checkout_session
+    ON public.payments(stripe_checkout_session_id)
+    WHERE stripe_checkout_session_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.cancel_unpaid_stripe_order(p_order_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_order RECORD;
+BEGIN
+    SELECT status, payment_status, order_number
+    INTO v_order
+    FROM public.orders
+    WHERE id = p_order_id AND payment_method = 'stripe'
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN FALSE;
+    END IF;
+    IF v_order.status <> 'pending' OR v_order.payment_status <> 'pending' THEN
+        RETURN FALSE;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM public.payments
+        WHERE order_id = p_order_id AND status = 'pending'
+    ) THEN
+        RETURN FALSE;
+    END IF;
+
+    UPDATE public.orders
+    SET status = 'cancelled', payment_status = 'failed', updated_at = NOW()
+    WHERE id = p_order_id;
+    DELETE FROM public.user_notifications
+    WHERE order_id = p_order_id AND title = 'Payment pending';
+    UPDATE public.payments
+    SET status = 'cancelled',
+        failure_message = 'Stripe Checkout could not be started',
+        updated_at = NOW()
+    WHERE order_id = p_order_id AND status = 'pending';
+    UPDATE public.products AS product
+    SET quantity = COALESCE(product.quantity, 0) + order_item.quantity
+    FROM public.order_items AS order_item
+    WHERE order_item.order_id = p_order_id
+      AND order_item.product_id = product.id
+      AND COALESCE(product.track_quantity, TRUE);
+
+    RETURN TRUE;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.resolve_stripe_checkout(TEXT, TEXT, TEXT, JSONB);
+CREATE OR REPLACE FUNCTION public.resolve_stripe_checkout(
+    p_checkout_session_id TEXT,
+    p_payment_intent_id TEXT,
+    p_outcome TEXT,
+    p_billing_address JSONB,
+    p_amount_total BIGINT,
+    p_currency TEXT,
+    p_metadata_order_id UUID,
+    p_metadata_user_id UUID,
+    p_client_reference_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_order_id UUID;
+    v_order RECORD;
+BEGIN
+    IF p_outcome IS NULL OR p_outcome NOT IN ('paid', 'cancelled')
+       OR p_checkout_session_id IS NULL
+       OR p_currency IS NULL
+       OR p_metadata_order_id IS NULL
+       OR p_metadata_user_id IS NULL
+       OR p_client_reference_id IS NULL THEN
+        RAISE EXCEPTION USING MESSAGE = 'STRIPE_INVALID_OUTCOME', ERRCODE = '22023';
+    END IF;
+
+    SELECT payments.order_id, payments.amount, payments.currency,
+           orders.user_id, orders.status, orders.payment_status, orders.order_number
+    INTO v_order
+    FROM public.payments AS payments
+    JOIN public.orders AS orders ON orders.id = payments.order_id
+    WHERE payments.stripe_checkout_session_id = p_checkout_session_id
+    FOR UPDATE OF orders, payments;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING MESSAGE = 'STRIPE_CHECKOUT_NOT_FOUND', ERRCODE = 'P0002';
+    END IF;
+    v_order_id := v_order.order_id;
+
+    IF p_metadata_order_id IS DISTINCT FROM v_order_id
+       OR p_metadata_user_id IS DISTINCT FROM v_order.user_id
+       OR p_client_reference_id IS DISTINCT FROM v_order.user_id
+       OR lower(p_currency) IS DISTINCT FROM lower(v_order.currency)
+       OR p_amount_total IS NULL
+       OR p_amount_total <> round(v_order.amount * 100)::BIGINT THEN
+        RAISE EXCEPTION USING MESSAGE = 'STRIPE_PAYMENT_MISMATCH', ERRCODE = '22023';
+    END IF;
+
+    IF p_outcome = 'paid' THEN
+        IF v_order.status = 'cancelled' OR v_order.payment_status IN ('failed', 'refunded') THEN
+            RAISE EXCEPTION USING MESSAGE = 'STRIPE_ORDER_NOT_PAYABLE', ERRCODE = '22023';
+        END IF;
+
+        UPDATE public.payments
+        SET stripe_payment_intent_id = COALESCE(p_payment_intent_id, stripe_payment_intent_id),
+            status = 'succeeded',
+            failure_message = NULL,
+            updated_at = NOW()
+        WHERE stripe_checkout_session_id = p_checkout_session_id;
+
+        UPDATE public.orders
+        SET payment_method = 'stripe',
+            payment_status = 'paid',
+            billing_address = COALESCE(p_billing_address, billing_address),
+            status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END,
+            updated_at = NOW()
+        WHERE id = v_order_id;
+        UPDATE public.user_notifications
+        SET title = 'Payment confirmed',
+            message = 'Your payment for order #' || v_order.order_number || ' was confirmed.',
+            is_read = FALSE
+        WHERE order_id = v_order_id AND title = 'Payment pending';
+        RETURN;
+    END IF;
+
+    UPDATE public.payments
+    SET status = 'cancelled', updated_at = NOW()
+    WHERE stripe_checkout_session_id = p_checkout_session_id
+      AND status = 'pending';
+
+    IF v_order.payment_status = 'paid' OR v_order.status <> 'pending'
+       OR EXISTS (
+           SELECT 1 FROM public.payments
+           WHERE order_id = v_order_id AND status = 'pending'
+       ) THEN
+        RETURN;
+    END IF;
+
+    UPDATE public.orders
+    SET status = 'cancelled', payment_status = 'failed', updated_at = NOW()
+    WHERE id = v_order_id;
+    DELETE FROM public.user_notifications
+    WHERE order_id = v_order_id AND title = 'Payment pending';
+    UPDATE public.products AS product
+    SET quantity = COALESCE(product.quantity, 0) + order_item.quantity
+    FROM public.order_items AS order_item
+    WHERE order_item.order_id = v_order_id
+      AND order_item.product_id = product.id
+      AND COALESCE(product.track_quantity, TRUE);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.cancel_unpaid_stripe_order(UUID)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_unpaid_stripe_order(UUID) TO service_role;
+REVOKE ALL ON FUNCTION public.resolve_stripe_checkout(TEXT, TEXT, TEXT, JSONB, BIGINT, TEXT, UUID, UUID, UUID)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_stripe_checkout(TEXT, TEXT, TEXT, JSONB, BIGINT, TEXT, UUID, UUID, UUID)
+    TO service_role;
 
 -- 3. NEWSLETTER SUBSCRIBERS TABLE
 -- Stores email subscribers (replaces PHP newsletter_subscribers table)
@@ -639,13 +1165,27 @@ DROP FUNCTION IF EXISTS public.get_low_stock_products();
 -- =============================================================================
 
 -- 1. Remember to set up Supabase Storage bucket for images:
---    - product-images (public)
+--    - product-images (public reads; uploads are performed only by the
+--      server-side admin action after checking app_metadata.role = 'admin')
 --    - blog-images (public)
 --    - user-avatars (private with user access)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'product-images',
+    'product-images',
+    TRUE,
+    6291456,
+    ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+)
+ON CONFLICT (id) DO UPDATE
+SET public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- 2. Configure Stripe webhook endpoint:
---    - /api/webhooks/stripe
---    - Events: payment_intent.succeeded, payment_intent.payment_failed
+-- 2. Configure the Stripe webhook endpoint:
+--    - /api/stripe/webhook
+--    - Event: checkout.session.completed
+--    - Event: checkout.session.expired
 
 -- 3. Configure Resend for transactional emails:
 --    - Order confirmations
@@ -653,12 +1193,59 @@ DROP FUNCTION IF EXISTS public.get_low_stock_products();
 --    - Password resets
 --    - Contact form submissions
 
--- 4. Add staff authorization only with the server-verified admin phase.
+-- 4. Admin product changes and image uploads are allowed only through
+--    server actions that verify the Supabase Auth app_metadata role claim.
+--    Never grant product write or storage upload access directly to shoppers.
+--
+-- 5. Provision an admin account:
+--    - Create the staff user (or reset/set their password) in Supabase
+--      Dashboard > Authentication > Users. Do not insert auth.users manually.
+--    - To grant the role from this SQL Editor, replace the email below with
+--      that existing user's email and rerun this setup file. The placeholder
+--      is deliberately a no-op, so a normal setup run does not grant access.
+--    - The update merges app_metadata and preserves existing claims. The user
+--      must sign out and back in after this runs so the new JWT includes role.
+--    - To revoke access, remove the "role" key from app_metadata in the
+--      Supabase Dashboard, or use the revocation statement in README.md.
+--
+-- Replace only the value below with the exact email of an existing staff user.
+-- Never add a password, service-role key, or client-editable user_metadata here.
+DO $$
+DECLARE
+    v_admin_email TEXT := 'REPLACE_WITH_ADMIN_EMAIL';
+    v_user_id UUID;
+BEGIN
+    IF lower(trim(v_admin_email)) = 'replace_with_admin_email' THEN
+        RAISE NOTICE 'Admin provisioning skipped; replace REPLACE_WITH_ADMIN_EMAIL to grant the admin role.';
+    ELSE
+        SELECT id
+        INTO v_user_id
+        FROM auth.users
+        WHERE lower(email) = lower(trim(v_admin_email))
+        LIMIT 1;
 
--- 5. Create indexes on frequently queried columns as the database grows
+        IF v_user_id IS NULL THEN
+            RAISE NOTICE 'Admin provisioning skipped; no Supabase Auth user exists for the configured email. Create the user, then rerun setup.sql.';
+        ELSE
+            UPDATE auth.users
+            SET raw_app_meta_data =
+                    COALESCE(raw_app_meta_data, '{}'::jsonb)
+                    || jsonb_build_object('role', 'admin'),
+                updated_at = NOW()
+            WHERE id = v_user_id;
+
+            RAISE NOTICE 'Admin role granted to the configured existing Supabase Auth user. Sign out and back in to refresh the JWT.';
+        END IF;
+    END IF;
+END $$;
+
+-- 6. Create indexes on frequently queried columns as the database grows
 
 -- =============================================================================
 -- COMPLETED
 -- =============================================================================
+
+-- Make newly created or updated RPCs available to PostgREST immediately.
+NOTIFY pgrst, 'reload schema';
 
 COMMIT;

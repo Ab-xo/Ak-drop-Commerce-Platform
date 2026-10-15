@@ -7,33 +7,36 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Heart,
+  Image as ImageIcon,
   RefreshCw,
   ShieldCheck,
   ShoppingCart,
   Star,
   Truck,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
-import toast from "react-hot-toast";
 import { useCartStore } from "@/store/cartStore";
 import { getProductById } from "@/utils/supabaseFetch";
 import { getProductImageUrl } from "@/utils/imageUtils";
 import { Product } from "@/types";
-
-const formatEtb = (value: number) =>
-  `ETB ${new Intl.NumberFormat("en-ET", { maximumFractionDigits: 0 }).format(value)}`;
+import { formatDisplayCurrency } from "@/lib/currency";
+import { useDisplayCurrency } from "@/store/currencyStore";
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const addItem = useCartStore((state) => state.addItem);
+  const currency = useDisplayCurrency();
   const [productState, setProductState] = useState<{
     id: string;
     product: Product | null;
     error: boolean;
     loading: boolean;
   }>({ id, product: null, error: false, loading: true });
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [gallerySelection, setGallerySelection] = useState({ productId: id, index: 0 });
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [isHovered, setIsHovered] = useState(false);
+  const [zoomState, setZoomState] = useState({ productId: id, zoomed: false });
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +75,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const handleAddToCart = () => {
     if (product && product.stock > 0) {
       addItem(product);
-      toast.success(`${product.name} added to your bag`);
     }
   };
 
@@ -105,8 +107,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  const images = product.images?.length ? product.images : [product.main_image];
+  const selectedImageIndex = gallerySelection.productId === id ? gallerySelection.index : 0;
+  const isZoomed = zoomState.productId === id && zoomState.zoomed;
+  const images = [product.main_image, ...(product.images ?? [])]
+    .filter((image, index, allImages) =>
+      typeof image === "string" && image.trim().length > 0 && allImages.indexOf(image) === index
+    )
+    .slice(0, 4);
   const selectedImage = images[selectedImageIndex] || product.main_image;
+  const gallerySlots = Array.from({ length: 4 }, (_, index) => images[index] ?? null);
 
   return (
     <div className="min-h-screen py-32">
@@ -126,33 +135,66 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
               onMouseMove={handleMouseMove}
-              className="relative h-[600px] cursor-crosshair overflow-hidden rounded-[2.5rem] border border-border shadow-2xl"
+              className="group relative aspect-square max-h-[600px] overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-secondary/80 via-secondary/40 to-background shadow-2xl shadow-black/10 sm:rounded-[2.5rem]"
             >
               <Image
                 src={getProductImageUrl(selectedImage)}
-                alt={product.name}
+                alt={`${product.name}, product view ${selectedImageIndex + 1}`}
                 fill
                 priority
-                className={`object-cover transition-transform duration-200 ${isHovered ? "scale-150" : "scale-100"}`}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className={`object-contain p-5 transition-transform duration-300 sm:p-8 ${isHovered || isZoomed ? "scale-150" : "scale-100"}`}
                 style={{ transformOrigin: `${mousePos.x}% ${mousePos.y}%` }}
               />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-background/75 to-transparent px-5 pb-4 pt-12">
+                <span className="rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground backdrop-blur">
+                  View {String(selectedImageIndex + 1).padStart(2, "0")} / 04
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setZoomState({ productId: id, zoomed: !isZoomed })}
+                aria-label={isZoomed ? "Zoom out of product image" : "Zoom in on product image"}
+                aria-pressed={isZoomed}
+                className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full border border-border/70 bg-background/85 text-foreground shadow-lg backdrop-blur transition hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {isZoomed ? <ZoomOut size={18} /> : <ZoomIn size={18} />}
+              </button>
             </motion.div>
-            <div className="grid grid-cols-4 gap-4">
-              {images.map((image, index) => (
+            <div className="grid grid-cols-4 gap-3 sm:gap-4" aria-label="Product image gallery">
+              {gallerySlots.map((image, index) => image ? (
                 <button
                   type="button"
                   key={`${image}-${index}`}
-                  onClick={() => setSelectedImageIndex(index)}
+                  onClick={() => {
+                    setGallerySelection({ productId: id, index });
+                    setZoomState({ productId: id, zoomed: false });
+                  }}
                   aria-label={`Show image ${index + 1} of ${product.name}`}
-                  className={`relative h-24 overflow-hidden rounded-xl border ${selectedImageIndex === index ? "border-primary" : "border-border opacity-60"}`}
+                  aria-pressed={selectedImageIndex === index}
+                  className={`group/thumb relative aspect-square overflow-hidden rounded-2xl border bg-secondary/40 transition ${selectedImageIndex === index ? "border-primary ring-2 ring-primary/20" : "border-border opacity-75 hover:border-primary/50 hover:opacity-100"}`}
                 >
                   <Image
                     src={getProductImageUrl(image)}
                     alt={`${product.name} thumbnail ${index + 1}`}
                     fill
-                    className="object-cover"
+                    sizes="(max-width: 640px) 22vw, 120px"
+                    className="object-contain p-1.5 transition-transform duration-300 group-hover/thumb:scale-105 sm:p-2"
                   />
+                  <span className="absolute bottom-1.5 right-1.5 rounded-md bg-background/85 px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground backdrop-blur">
+                    0{index + 1}
+                  </span>
                 </button>
+              ) : (
+                <div
+                  key={`missing-view-${index}`}
+                  role="img"
+                  aria-label={`Additional product view ${index + 1} is not available yet`}
+                  className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-secondary/20 px-1 text-center text-muted-foreground/70"
+                >
+                  <ImageIcon size={18} strokeWidth={1.5} />
+                  <span className="text-[8px] font-semibold leading-tight sm:text-[10px]">More views<br />coming soon</span>
+                </div>
               ))}
             </div>
           </div>
@@ -175,7 +217,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <h1 className="mb-4 text-5xl font-black uppercase italic tracking-tighter md:text-7xl">
               {product.name}
             </h1>
-            <p className="mb-8 text-3xl font-black italic text-primary">{formatEtb(product.price)}</p>
+            <p className="mb-2 text-3xl font-black italic text-primary">{formatDisplayCurrency(product.price, currency)}</p>
+            <p className="mb-8 text-xs text-muted-foreground">Portfolio display conversion only. Checkout orders are recorded in ETB.</p>
             <p className="mb-12 text-lg font-medium leading-relaxed text-foreground/60">
               {product.description}
             </p>
@@ -219,7 +262,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <div className="grid grid-cols-3 gap-4 border-t border-border pt-12">
               <div className="flex flex-col items-center gap-3 text-center">
                 <Truck className="text-primary/60" size={20} />
-                <span className="text-[9px] font-black uppercase tracking-widest text-foreground/40">Addis delivery</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-foreground/40">Delivery options at checkout</span>
               </div>
               <div className="flex flex-col items-center gap-3 text-center">
                 <RefreshCw className="text-primary/60" size={20} />

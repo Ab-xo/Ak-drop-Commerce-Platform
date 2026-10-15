@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react";
 import ProductCard from "@/components/ui/ProductCard";
 import { Product, Category } from "@/types";
-import { Search, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Search, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight, ChevronDown, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { getProducts, getCategories } from "@/utils/supabaseFetch";
 import { useSearchParams } from "next/navigation";
+import { formatDisplayCurrency } from "@/lib/currency";
+import { useDisplayCurrency } from "@/store/currencyStore";
+import CurrencySwitcher from "@/components/ui/CurrencySwitcher";
 
 const ShopPage = () => {
+    const currency = useDisplayCurrency();
     const searchParams = useSearchParams();
     const initialCategory = searchParams.get("category") || "all";
 
@@ -17,11 +21,17 @@ const ShopPage = () => {
     const [activeCategory, setActiveCategory] = useState(initialCategory);
     const [searchQuery, setSearchQuery] = useState("");
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+    const [priceCeiling, setPriceCeiling] = useState(1000);
     const [sortBy, setSortBy] = useState("newest");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
     const itemsPerPage = 6;
+
+    useEffect(() => {
+        const requestedCategory = searchParams.get("category") || "all";
+        setActiveCategory(requestedCategory);
+    }, [searchParams]);
 
     useEffect(() => {
         async function initShop() {
@@ -43,6 +53,12 @@ const ShopPage = () => {
             try {
                 const data = await getProducts(activeCategory);
                 setProducts(data);
+                const maximumPrice = Math.max(
+                    1000,
+                    ...data.map((product) => Math.ceil(product.price / 50) * 50)
+                );
+                setPriceCeiling(maximumPrice);
+                setPriceRange([0, maximumPrice]);
                 setCurrentPage(1); // Reset to page 1 on filter change
             } catch (error) {
                 console.error("Failed to load products:", error);
@@ -57,7 +73,12 @@ const ShopPage = () => {
     // Filtering & Sorting Logic
     const processedProducts = products
         .filter((p) => {
-            const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+            const normalizedSearch = searchQuery.trim().toLowerCase();
+            const matchesSearch = [
+                p.name,
+                p.description,
+                p.category?.name || "",
+            ].some((value) => value.toLowerCase().includes(normalizedSearch));
             const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
             return matchesSearch && matchesPrice;
         })
@@ -69,6 +90,15 @@ const ShopPage = () => {
 
     // Pagination Logic
     const totalPages = Math.ceil(processedProducts.length / itemsPerPage);
+    const visiblePageCount = Math.min(totalPages, 5);
+    const firstVisiblePage = Math.min(
+        Math.max(currentPage - 2, 1),
+        totalPages - visiblePageCount + 1
+    );
+    const visiblePages = Array.from(
+        { length: visiblePageCount },
+        (_, index) => firstVisiblePage + index
+    );
     const paginatedProducts = processedProducts.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
@@ -87,43 +117,65 @@ const ShopPage = () => {
                     </p>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-12">
+                <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
                     {/* Sidebar Filters */}
-                    <aside className="w-full lg:w-80 space-y-10">
+                    <aside className="w-full space-y-7 lg:sticky lg:top-28 lg:w-72 lg:shrink-0 lg:self-start">
                         {/* Search & Sort */}
-                        <div className="space-y-6">
+                        <div className="space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
                             <div className="relative">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/20" size={18} />
+                                <Search aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                                 <input
+                                    aria-label="Search products"
                                     type="text"
-                                    placeholder="Search gear..."
-                                    className="w-full bg-foreground/5 border border-border rounded-2xl py-4 pl-12 pr-6 focus:outline-none focus:border-primary transition-colors text-sm font-bold"
+                                    placeholder="Search products..."
+                                    className="h-12 w-full rounded-xl border border-input bg-background pl-11 pr-10 text-sm font-medium text-foreground placeholder:text-muted-foreground/70 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                 />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        aria-label="Clear search"
+                                        onClick={() => {
+                                            setSearchQuery("");
+                                            setCurrentPage(1);
+                                        }}
+                                        className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                                    >
+                                        <X size={15} />
+                                    </button>
+                                )}
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-foreground/40 px-2">Sort By</label>
-                                <select
-                                    className="w-full bg-foreground/5 border border-border rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-primary appearance-none hover:bg-foreground/10 transition-colors"
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                >
-                                    <option value="newest">Newest Drops</option>
-                                    <option value="price-low">Price: Low to High</option>
-                                    <option value="price-high">Price: High to Low</option>
-                                </select>
+                            <div className="space-y-2">
+                                <label htmlFor="shop-sort" className="block px-1 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Sort by</label>
+                                <div className="relative">
+                                    <select
+                                        id="shop-sort"
+                                        className="h-12 w-full appearance-none rounded-xl border border-input bg-background px-4 pr-11 text-sm font-semibold text-foreground outline-none transition hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 [color-scheme:light] dark:[color-scheme:dark]"
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                    >
+                                        <option className="bg-background text-foreground" value="newest">Newest drops</option>
+                                        <option className="bg-background text-foreground" value="price-low">Price: low to high</option>
+                                        <option className="bg-background text-foreground" value="price-high">Price: high to low</option>
+                                    </select>
+                                    <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                </div>
                             </div>
+                            <CurrencySwitcher />
                         </div>
 
                         {/* Category Filter */}
-                        <div className="space-y-6">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-foreground/40 px-2">Categories</label>
-                            <div className="flex flex-col gap-2">
+                        <div className="space-y-3 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                            <label className="block px-1 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Categories</label>
+                            <div className="flex flex-col gap-1.5">
                                 <button
                                     onClick={() => setActiveCategory("all")}
-                                    className={`w-full text-left px-6 py-4 rounded-2xl text-sm font-bold transition-all ${activeCategory === "all" ? "bg-primary text-primary-foreground" : "bg-foreground/5 text-foreground/60 hover:bg-foreground/10"
+                                    className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeCategory === "all" ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20" : "text-foreground/70 hover:bg-secondary hover:text-foreground"
                                         }`}
                                 >
                                     All Collections
@@ -132,7 +184,7 @@ const ShopPage = () => {
                                     <button
                                         key={cat.id}
                                         onClick={() => setActiveCategory(cat.slug)}
-                                        className={`w-full text-left px-6 py-4 rounded-2xl text-sm font-bold transition-all ${activeCategory === cat.slug ? "bg-primary text-primary-foreground" : "bg-foreground/5 text-foreground/60 hover:bg-foreground/10"
+                                        className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeCategory === cat.slug ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20" : "text-foreground/70 hover:bg-secondary hover:text-foreground"
                                             }`}
                                     >
                                         {cat.name}
@@ -142,21 +194,28 @@ const ShopPage = () => {
                         </div>
 
                         {/* Price Filter */}
-                        <div className="space-y-6">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-foreground/40 px-2">Price Range</label>
-                            <div className="px-2">
+                        <div className="space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                            <div className="flex items-center justify-between gap-3">
+                                <label htmlFor="shop-price-range" className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Price range</label>
+                                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{formatDisplayCurrency(priceRange[1], currency)}</span>
+                            </div>
+                            <div className="px-1">
                                 <input
+                                    id="shop-price-range"
                                     type="range"
                                     min="0"
-                                    max="1000"
+                                    max={priceCeiling}
                                     step="50"
-                                    className="w-full accent-primary h-1.5 bg-foreground/10 rounded-lg appearance-none cursor-pointer mb-4"
+                                    className="mb-3 h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-secondary accent-primary"
                                     value={priceRange[1]}
-                                    onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
+                                    onChange={(e) => {
+                                        setPriceRange([0, parseInt(e.target.value)]);
+                                        setCurrentPage(1);
+                                    }}
                                 />
-                                <div className="flex justify-between text-xs font-black text-primary uppercase">
-                                    <span>$0</span>
-                                    <span>Up to ${priceRange[1]}</span>
+                                <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                                    <span>{formatDisplayCurrency(0, currency)}</span>
+                                    <span>{formatDisplayCurrency(priceCeiling, currency)} max</span>
                                 </div>
                             </div>
                         </div>
@@ -188,14 +247,14 @@ const ShopPage = () => {
                                         {/* Subtle Glow */}
                                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
 
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex max-w-full items-center gap-1.5 sm:gap-3">
                                             <button
                                                 disabled={currentPage === 1}
                                                 onClick={() => {
                                                     setCurrentPage(1);
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
-                                                className="w-14 h-14 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group"
+                                                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full glass-morphism transition-all duration-300 group hover:bg-primary hover:text-black hover:scale-110 active:scale-90 disabled:cursor-not-allowed disabled:opacity-10 sm:flex sm:h-14 sm:w-14"
                                                 title="First Page"
                                             >
                                                 <ChevronsLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
@@ -207,21 +266,21 @@ const ShopPage = () => {
                                                     setCurrentPage(prev => prev - 1);
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
-                                                className="w-14 h-14 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group"
+                                                className="h-10 w-10 shrink-0 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group sm:h-14 sm:w-14"
                                                 title="Previous Page"
                                             >
                                                 <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
                                             </button>
 
-                                            <div className="flex gap-3 px-6 py-2 bg-foreground/5 rounded-full border border-border backdrop-blur-md">
-                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                            <div className="flex min-w-0 gap-1 rounded-full border border-border bg-foreground/5 px-2 py-2 backdrop-blur-md sm:gap-3 sm:px-6">
+                                                {visiblePages.map((page) => (
                                                     <button
                                                         key={page}
                                                         onClick={() => {
                                                             setCurrentPage(page);
                                                             window.scrollTo({ top: 0, behavior: 'smooth' });
                                                         }}
-                                                        className={`w-10 h-10 rounded-full font-black text-xs transition-all duration-300 relative group ${currentPage === page
+                                                        className={`relative h-8 w-8 shrink-0 rounded-full text-xs font-black transition-all duration-300 group sm:h-10 sm:w-10 ${currentPage === page
                                                             ? "bg-primary text-primary-foreground scale-110 shadow-lg shadow-primary/20"
                                                             : "hover:bg-foreground/10 text-foreground/40 hover:text-foreground"
                                                             }`}
@@ -243,7 +302,7 @@ const ShopPage = () => {
                                                     setCurrentPage(prev => prev + 1);
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
-                                                className="w-14 h-14 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group"
+                                                className="h-10 w-10 shrink-0 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group sm:h-14 sm:w-14"
                                                 title="Next Page"
                                             >
                                                 <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
@@ -255,7 +314,7 @@ const ShopPage = () => {
                                                     setCurrentPage(totalPages);
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
-                                                className="w-14 h-14 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group"
+                                                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full glass-morphism transition-all duration-300 group hover:bg-primary hover:text-black hover:scale-110 active:scale-90 disabled:cursor-not-allowed disabled:opacity-10 sm:flex sm:h-14 sm:w-14"
                                                 title="Last Page"
                                             >
                                                 <ChevronsRight size={24} className="group-hover:translate-x-1 transition-transform" />
@@ -276,7 +335,7 @@ const ShopPage = () => {
                             </>
                         ) : (
                             <div className="text-center py-32 glass-card rounded-[3rem]">
-                                <h3 className="text-3xl font-black mb-4 uppercase italic">No tactical gear found</h3>
+                                <h3 className="text-3xl font-black mb-4 uppercase italic">No products found</h3>
                                 <p className="text-foreground/40 font-medium">Try adjusting your filters to find your perfect match.</p>
                             </div>
                         )}

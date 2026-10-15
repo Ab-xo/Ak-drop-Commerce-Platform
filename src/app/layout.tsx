@@ -1,12 +1,9 @@
-import { Toaster } from "react-hot-toast";
 import { Toaster as SonnerToaster } from "sonner";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import CartDrawer from "@/components/cart/CartDrawer";
+import SiteFrame from "@/components/layout/SiteFrame";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,10 +20,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AK Drop | Ethiopian Fashion, Footwear & Everyday Style",
+  title: "AK Drop | Global Fashion & Everyday Style",
   description:
-    "Shop curated shoes, shirts, apparel, accessories, and new drops from AK Drop in Addis Ababa.",
-  keywords: "Ethiopian fashion, footwear, AK Drop, Addis Ababa, shoes, apparel",
+    "Explore a global-ready commerce portfolio for footwear, apparel, accessories, and everyday style.",
+  keywords: "fashion, footwear, commerce portfolio, AK Drop, shoes, apparel",
   authors: [{ name: "AK Drop" }],
   robots: "index, follow",
 };
@@ -63,25 +60,27 @@ export default function RootLayout({
           storageKey="ak-drop-theme"
           disableTransitionOnChange={false}
         >
-          <Toaster
+          <SonnerToaster
             position="bottom-right"
+            theme="system"
+            richColors
+            closeButton
             toastOptions={{
-              duration: 4000,
-              style: {
-                background: "hsl(var(--card))",
-                color: "hsl(var(--foreground))",
-                border: "1px solid hsl(var(--border))",
+              duration: 3500,
+              classNames: {
+                toast: "group !rounded-2xl !border !border-border !bg-card !text-foreground !shadow-xl !shadow-black/10 !backdrop-blur-xl",
+                title: "!font-semibold !tracking-tight",
+                description: "!text-muted-foreground",
+                success: "!border-emerald-500/25 !bg-emerald-500/[0.08]",
+                error: "!border-destructive/30 !bg-destructive/[0.08]",
+                warning: "!border-amber-500/30 !bg-amber-500/[0.08]",
+                info: "!border-primary/25 !bg-primary/[0.06]",
+                closeButton: "!border-border !bg-background !text-muted-foreground hover:!text-foreground",
               },
             }}
           />
-          <SonnerToaster position="bottom-right" theme="system" richColors />
 
-          <Navbar />
-          <CartDrawer />
-
-          <main className="flex-grow pt-20 md:pt-0">{children}</main>
-
-          <Footer />
+          <SiteFrame>{children}</SiteFrame>
         </ThemeProvider>
       </body>
     </html>

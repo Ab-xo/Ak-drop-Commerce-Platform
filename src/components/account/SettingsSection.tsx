@@ -8,8 +8,10 @@ import {
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import type { UserProfile } from '@/lib/supabase';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
+import { DISPLAY_CURRENCIES } from '@/lib/currency';
+import { useCurrencyStore, useDisplayCurrency } from '@/store/currencyStore';
 
 interface SettingsSectionProps {
   user: SupabaseUser;
@@ -18,6 +20,8 @@ interface SettingsSectionProps {
 
 export default function SettingsSection({ user, profile }: SettingsSectionProps) {
   const { theme, setTheme } = useTheme();
+  const currency = useDisplayCurrency();
+  const setCurrency = useCurrencyStore((state) => state.setCurrency);
   const [settings, setSettings] = useState({
     orderNotifs: true,
     promoNotifs: true,
@@ -95,7 +99,7 @@ export default function SettingsSection({ user, profile }: SettingsSectionProps)
               Appearance
             </h3>
             <p className="text-sm text-muted-foreground">
-              Customize how AK Footwear looks on your device
+              Customize how AK Drop looks on your device
             </p>
           </div>
         </div>
@@ -331,21 +335,28 @@ export default function SettingsSection({ user, profile }: SettingsSectionProps)
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {[
-            { label: 'Language', options: ['English (US)', 'Spanish', 'French', 'German'] },
-            { label: 'Currency', options: ['USD ($)', 'EUR (€)', 'GBP (£)', 'JPY (¥)'] },
-          ].map((pref, i) => (
-            <div key={i} className="p-4 bg-secondary/30 rounded-xl">
-              <label className="block mb-2">
-                <span className="font-medium text-foreground text-sm">{pref.label}</span>
-              </label>
-              <select className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-foreground text-sm">
-                {pref.options.map(opt => (
-                  <option key={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-          ))}
+          <div className="p-4 bg-secondary/30 rounded-xl">
+            <label htmlFor="account-currency" className="mb-2 block">
+              <span className="font-medium text-foreground text-sm">Display currency</span>
+            </label>
+            <select
+              id="account-currency"
+              value={currency}
+              onChange={(event) => {
+                const selected = DISPLAY_CURRENCIES.find((option) => option === event.target.value);
+                if (selected) setCurrency(selected);
+              }}
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/50"
+            >
+              {DISPLAY_CURRENCIES.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+            <p className="mt-2 text-xs text-muted-foreground">Illustrative rates; order records remain in ETB.</p>
+          </div>
+          <div className="rounded-xl bg-secondary/30 p-4">
+            <p className="mb-2 font-medium text-foreground text-sm">Language</p>
+            <p className="rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground">English</p>
+            <p className="mt-2 text-xs text-muted-foreground">Additional translations can be configured for a production storefront.</p>
+          </div>
         </div>
       </motion.div>
 

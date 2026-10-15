@@ -1,21 +1,13 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Package, Calendar, DollarSign, Truck, CheckCircle, Clock, XCircle, ChevronRight } from 'lucide-react';
+import { Package, Calendar, Truck, CheckCircle, Clock, XCircle, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-
-interface Order {
-  id: string;
-  order_number: string;
-  status: string;
-  total_amount: number;
-  currency: string;
-  created_at: string;
-  payment_status: string;
-}
+import type { OrderSummary } from '@/types';
+import { formatDisplayCurrency } from '@/lib/currency';
 
 interface OrdersSectionProps {
-  orders: Order[];
+  orders: OrderSummary[];
 }
 
 export default function OrdersSection({ orders }: OrdersSectionProps) {
@@ -116,18 +108,34 @@ export default function OrdersSection({ orders }: OrdersSectionProps) {
                       })}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <DollarSign size={13} />
+                      <Package size={13} />
                       <span className="font-semibold text-foreground">
-                        ${order.total_amount.toFixed(2)}
+                        {order.total_is_final
+                          ? formatDisplayCurrency(order.total_amount, 'USD')
+                          : `Subtotal ${formatDisplayCurrency(order.subtotal_amount, 'USD')}`}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
-                        order.payment_status === 'paid' 
+                        order.payment_method === 'cash_on_delivery'
+                          ? 'bg-blue-500/10 text-blue-500'
+                          : order.status === 'cancelled'
+                          ? 'bg-red-500/10 text-red-500'
+                          : order.payment_status === 'paid'
                           ? 'bg-green-500/10 text-green-500' 
                           : 'bg-yellow-500/10 text-yellow-500'
                       }`}>
-                        {order.payment_status === 'paid' ? '✓ Paid' : '⏳ Pending'}
+                        {order.payment_method === 'stripe'
+                          ? order.payment_status === 'paid'
+                            ? 'Stripe · paid'
+                            : order.status === 'cancelled'
+                              ? 'Stripe · cancelled'
+                              : 'Stripe · payment pending'
+                          : order.payment_method === 'cash_on_delivery'
+                            ? 'Demo · COD flow'
+                            : order.payment_status === 'paid'
+                              ? 'Paid'
+                              : 'Payment pending'}
                       </span>
                     </div>
                   </div>

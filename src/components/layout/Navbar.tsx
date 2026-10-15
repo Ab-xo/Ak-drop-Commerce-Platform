@@ -2,7 +2,7 @@
 
 import { useCartStore } from "@/store/cartStore";
 import Link from "next/link";
-import { ShoppingCart, User, Search, Menu, X, MapPin } from "lucide-react";
+import { ShoppingCart, User, Search, Menu, X, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -10,6 +10,7 @@ import ClientOnly from "@/components/ui/ClientOnly";
 import UserProfileDropdown from "./UserProfileDropdown";
 import { createClient } from "@/lib/supabase";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { isNotificationsTableMissing } from "@/lib/notification-errors";
 
 interface NavUser { email: string; name?: string; avatarUrl?: string; }
 
@@ -25,6 +26,8 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<NavUser | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const totalItems = useCartStore((s) => s.getTotalItems());
   const setCartOpen = useCartStore((s) => s.setCartOpen);
@@ -39,6 +42,7 @@ export default function Navbar() {
         .eq("id", authUser.id)
         .maybeSingle();
       if (!mounted) return;
+      setUserId(authUser.id);
       setUser({
         email: authUser.email ?? "",
         name: resolveDisplayName(authUser, profile?.full_name),
@@ -52,10 +56,41 @@ export default function Navbar() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) loadUser(session.user);
-      else if (mounted) { setUser(null); setLoading(false); }
+      else if (mounted) { setUser(null); setUserId(null); setUnreadNotifications(0); setLoading(false); }
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let mounted = true;
+    const refreshUnreadCount = async () => {
+      const { count, error } = await createClient()
+        .from("user_notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_read", false);
+      if (error) {
+        if (isNotificationsTableMissing(error)) {
+          setUnreadNotifications(0);
+          return;
+        }
+        console.error("Navbar notification count error:", error.message);
+        return;
+      }
+      if (mounted) setUnreadNotifications(count ?? 0);
+    };
+
+    refreshUnreadCount();
+    window.addEventListener("focus", refreshUnreadCount);
+    window.addEventListener("akdrop:notifications-changed", refreshUnreadCount);
+    return () => {
+      mounted = false;
+      window.removeEventListener("focus", refreshUnreadCount);
+      window.removeEventListener("akdrop:notifications-changed", refreshUnreadCount);
+    };
+  }, [userId]);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 24);
@@ -76,7 +111,7 @@ export default function Navbar() {
       animate={{
         backgroundColor: isScrolled ? "hsl(var(--background) / 0.88)" : "hsl(var(--hero-surface) / 0.18)",
         backdropFilter: isScrolled ? "blur(18px) saturate(1.25)" : "blur(6px)",
-        borderColor: isScrolled ? "hsl(var(--border) / 0.8)" : "transparent",
+        borderColor: isScrolled ? "hsl(var(--border) / 0.8)" : "hsl(var(--border) / 0)",
       }}
       className="fixed top-0 w-full z-50 border-b transition-shadow"
       style={{ boxShadow: isScrolled ? "0 10px 30px hsl(var(--background) / 0.18)" : "none" }}
@@ -90,9 +125,16 @@ export default function Navbar() {
           {navLinks.map((link) => <Link key={link.name} href={link.href} className="text-sm hover:text-primary nav-link">{link.name}</Link>)}
         </div>
         <div className="flex items-center gap-2">
-          <span className="hidden xl:flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50"><MapPin size={13} /> Addis delivery</span>
           <ClientOnly><ThemeToggle /></ClientOnly>
           <Link href="/shop" aria-label="Search products" className="p-2 hover:bg-foreground/10 rounded-full"><Search size={19} /></Link>
+          {user && <Link
+            href="/account?tab=notifications"
+            aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : "Notifications"}
+            className="relative rounded-full p-2 transition hover:bg-foreground/10"
+          >
+            <Bell size={19} />
+            {unreadNotifications > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-black text-primary-foreground">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>}
+          </Link>}
           <button onClick={() => setCartOpen(true)} aria-label="Open shopping bag" className="p-2 hover:bg-foreground/10 rounded-full relative">
             <ShoppingCart size={19} />
             <ClientOnly>{totalItems > 0 && <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-black">{totalItems}</span>}</ClientOnly>

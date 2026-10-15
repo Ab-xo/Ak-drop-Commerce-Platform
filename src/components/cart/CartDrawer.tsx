@@ -6,15 +6,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+import { formatDisplayCurrency } from "@/lib/currency";
+import { useDisplayCurrency } from "@/store/currencyStore";
+
+const subscribeToHydration = () => () => {};
+const getHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 const CartDrawer = () => {
     const { isCartOpen, setCartOpen, items, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCartStore();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    const mounted = useSyncExternalStore(subscribeToHydration, getHydrationSnapshot, getServerHydrationSnapshot);
+    const currency = useDisplayCurrency();
 
     if (!mounted) return null;
 
@@ -85,7 +88,7 @@ const CartDrawer = () => {
                                         </div>
                                         <div className="flex-grow min-w-0">
                                             <h3 className="font-bold text-sm truncate uppercase italic">{item.name}</h3>
-                                            <p className="text-primary font-black text-xs mb-3 font-mono tracking-tighter">${item.price}</p>
+                                            <p className="text-primary font-black text-xs mb-3 font-mono tracking-tighter">{formatDisplayCurrency(item.price, currency)}</p>
 
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 bg-foreground/5 rounded-full px-2 py-1 border border-border">
@@ -121,7 +124,7 @@ const CartDrawer = () => {
                             <div className="p-6 bg-foreground/[0.02] border-t border-border space-y-4">
                                 <div className="flex justify-between items-center text-foreground">
                                     <span className="text-foreground/40 text-xs font-black uppercase tracking-widest">Subtotal</span>
-                                    <span className="text-xl font-black text-primary">${getTotalPrice().toFixed(2)}</span>
+                                    <span className="text-xl font-black text-primary">{formatDisplayCurrency(getTotalPrice(), currency)}</span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <Link
@@ -131,9 +134,13 @@ const CartDrawer = () => {
                                     >
                                         View Full Cart
                                     </Link>
-                                    <button className="py-4 rounded-xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                    <Link
+                                        href="/checkout"
+                                        onClick={() => setCartOpen(false)}
+                                        className="py-4 rounded-xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                    >
                                         Checkout <ArrowRight size={14} />
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                         )}

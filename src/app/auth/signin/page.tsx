@@ -1,22 +1,199 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AlertCircle, Eye, EyeOff, Lock, Mail, Sparkles } from 'lucide-react';
+import AuthPageShell from '@/components/auth/AuthPageShell';
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import { createClient } from '@/lib/supabase';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
-function safeRedirect(value: string | null) { return value && value.startsWith('/') && !value.startsWith('//') ? value : '/'; }
-function SignInForm() {
-  const searchParams = useSearchParams(); const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false); const [isLoading, setIsLoading] = useState(false); const [isGoogleLoading, setIsGoogleLoading] = useState(false); const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
-  const urlError = searchParams.get('error'); const redirectTo = safeRedirect(searchParams.get('redirect'));
-  useEffect(() => { if (urlError) toast.error(urlError); }, [urlError]);
-  const handleEmailSignIn = async (e: React.FormEvent) => { e.preventDefault(); if (!email.trim() || !password) return; setIsLoading(true); try { const { error } = await createClient().auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); if (error) toast.error('Invalid email or password. Please try again.'); else { toast.success('Welcome back to AK Drop!'); router.replace(redirectTo); router.refresh(); } } catch { toast.error('An unexpected error occurred. Please try again.'); } finally { setIsLoading(false); } };
-  const handleGoogleSignIn = async () => { setIsGoogleLoading(true); try { const { error } = await createClient().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`, queryParams: { access_type: 'offline', prompt: 'select_account' } } }); if (error) { toast.error(error.message || 'Failed to sign in with Google.'); setIsGoogleLoading(false); } } catch { toast.error('Failed to connect to Google. Please try again.'); setIsGoogleLoading(false); } };
-  return <div className="min-h-screen flex pt-20"><div className="hidden lg:flex lg:w-1/2 relative overflow-hidden"><Image src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=90&w=1400" alt="AK Drop premium footwear" fill priority sizes="50vw" className="object-cover" /><div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-black/60" /><div className="relative z-10 flex flex-col justify-between h-full p-12"><div /><div className="space-y-6"><div className="w-12 h-1 bg-primary rounded-full" /><h2 className="text-4xl md:text-5xl font-black italic uppercase text-white leading-tight">STYLE THAT<br /><span className="text-primary">MOVES YOU</span></h2><p className="text-white/70 text-lg font-medium max-w-xs">Premium footwear, apparel &amp; accessories — curated for Addis Ababa and beyond.</p><Link href="/shop" className="inline-flex items-center gap-2 text-primary text-sm font-black uppercase tracking-widest hover:gap-4 transition-all">Explore the drop <ArrowRight size={16} /></Link></div><p className="text-white/30 text-xs font-bold uppercase tracking-widest">AK Drop — Addis Ababa, Ethiopia</p></div></div><div className="w-full lg:w-1/2 flex items-center justify-center bg-background px-6 py-12 overflow-y-auto"><motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-md"><div className="mb-8"><h1 className="text-3xl font-black uppercase italic tracking-tighter mb-2">Welcome <span className="text-primary">Back</span></h1><p className="text-foreground/50 text-sm">Sign in to your AK Drop account to continue.</p></div><AnimatePresence>{urlError && <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400"><AlertCircle size={16} className="mt-0.5 shrink-0" /><span>{urlError}</span></motion.div>}</AnimatePresence><div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl"><div className="h-1 bg-gradient-to-r from-primary via-purple-500 to-blue-500" /><div className="space-y-6 p-8"><button type="button" onClick={handleGoogleSignIn} disabled={isGoogleLoading} className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm font-medium transition hover:border-primary/40 hover:bg-foreground/5 disabled:opacity-60">{isGoogleLoading ? 'Opening Google…' : 'Continue with Google'}</button><div className="flex items-center gap-4"><div className="h-px flex-1 bg-border" /><span className="text-[11px] uppercase tracking-widest text-foreground/40">or</span><div className="h-px flex-1 bg-border" /></div><form onSubmit={handleEmailSignIn} className="space-y-4"><label className="block space-y-1.5 text-sm font-semibold" htmlFor="email">Email address<div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} /><input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" className="w-full rounded-xl border border-border bg-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40" /></div></label><label className="block space-y-1.5 text-sm font-semibold" htmlFor="password">Password<div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={17} /><input id="password" type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" autoComplete="current-password" className="w-full rounded-xl border border-border bg-background py-3 pl-10 pr-12 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40" /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-foreground/40">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label><div className="flex justify-end"><Link href="/auth/forgot-password" className="text-xs font-medium text-primary hover:underline">Forgot password?</Link></div><button type="submit" disabled={isLoading || !email.trim() || !password} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-black uppercase italic tracking-widest text-primary-foreground transition hover:opacity-90 disabled:opacity-50">{isLoading ? 'Signing in…' : <><Sparkles size={15} />Sign In</>}</button></form><p className="text-center text-sm text-foreground/50">No account yet? <Link href="/auth/signup" className="font-bold text-primary hover:underline">Create one free</Link></p></div></div><p className="mt-6 text-center text-xs text-foreground/30">By continuing, you agree to AK Drop&apos;s Terms &amp; Privacy Policy.</p></motion.div></div></div>;
+function safeRedirect(value: string | null) {
+  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
 }
-export default function SignInPage() { return <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" /></div>}><SignInForm /></Suspense>; }
+
+function SignInForm() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const urlError = searchParams.get('error');
+  const redirectTo = safeRedirect(searchParams.get('redirect'));
+
+  async function handleEmailSignIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!email.trim() || !password) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await createClient().auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        toast.error('Invalid email or password. Please try again.');
+        return;
+      }
+
+      toast.success('Welcome back to AK Drop!');
+      router.replace(redirectTo);
+      router.refresh();
+    } catch {
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <AuthPageShell>
+      <header className="mb-7">
+        <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
+          AK Drop account
+        </p>
+        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+          Welcome back
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Sign in to continue shopping.
+        </p>
+      </header>
+
+      {urlError && (
+        <div
+          role="alert"
+          className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400"
+        >
+          <AlertCircle size={17} className="mt-0.5 shrink-0" />
+          <span>{urlError}</span>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-xl shadow-black/5 sm:p-7">
+        <GoogleAuthButton redirectTo={redirectTo} />
+
+        <div className="my-5 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            or use email
+          </span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <form onSubmit={handleEmailSignIn} className="space-y-4">
+          <label
+            htmlFor="email"
+            className="block space-y-2 text-sm font-semibold"
+          >
+            Email address
+            <span className="relative block">
+              <Mail
+                aria-hidden="true"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                size={17}
+              />
+              <input
+                id="email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-lg border border-input bg-background py-3 pl-10 pr-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </span>
+          </label>
+
+          <label
+            htmlFor="password"
+            className="block space-y-2 text-sm font-semibold"
+          >
+            Password
+            <span className="relative block">
+              <Lock
+                aria-hidden="true"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                size={17}
+              />
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                className="w-full rounded-lg border border-input bg-background py-3 pl-10 pr-11 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </span>
+          </label>
+
+          <div className="flex justify-end">
+            <Link
+              href="/auth/forgot-password"
+              className="text-sm font-semibold text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || !email.trim() || !password}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-primary-foreground transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? (
+              'Signing in…'
+            ) : (
+              <>
+                <Sparkles size={16} />
+                Sign in
+              </>
+            )}
+          </button>
+        </form>
+
+        <p className="mt-5 text-center text-sm text-muted-foreground">
+          New to AK Drop?{' '}
+          <Link
+            href="/auth/signup"
+            className="font-bold text-primary hover:underline"
+          >
+            Create an account
+          </Link>
+        </p>
+      </div>
+      <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
+        By continuing, you agree to AK Drop&apos;s Terms and Privacy Policy.
+      </p>
+    </AuthPageShell>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+        </div>
+      }
+    >
+      <SignInForm />
+    </Suspense>
+  );
+}

@@ -9,6 +9,7 @@ interface CartState {
     addItem: (product: Product) => void;
     removeItem: (productId: string) => void;
     updateQuantity: (productId: string, quantity: number) => void;
+    updatePrices: (prices: { productId: string; price: number }[]) => void;
     clearCart: () => void;
     getTotalItems: () => number;
     getTotalPrice: () => number;
@@ -51,6 +52,16 @@ export const useCartStore = create<CartState>()(
                 set({
                     items: get().items.map((item) =>
                         item.id === productId ? { ...item, quantity } : item
+                    ),
+                });
+            },
+            updatePrices: (prices) => {
+                const currentPrices = new Map(prices.map(({ productId, price }) => [productId, price]));
+                set({
+                    items: get().items.map((item) =>
+                        currentPrices.has(item.id)
+                            ? { ...item, price: currentPrices.get(item.id) ?? item.price }
+                            : item
                     ),
                 });
             },

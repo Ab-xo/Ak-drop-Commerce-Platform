@@ -11,18 +11,17 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getCategories, getNewArrivals, getProducts } from "@/utils/supabaseFetch";
 import { Product, Category } from "@/types";
-
-const formatEtb = (v: number) =>
-  `ETB ${new Intl.NumberFormat("en-ET", { maximumFractionDigits: 0 }).format(v)}`;
+import { formatDisplayCurrency } from "@/lib/currency";
+import { useDisplayCurrency } from "@/store/currencyStore";
 
 // ── Marquee ticker ────────────────────────────────────────────────────────────
 const TICKER_ITEMS = [
-  "Free delivery in Addis",
-  "New drops every week",
-  "30-day returns",
-  "Secure checkout",
-  "Genuine products",
-  "Premium brands",
+  "Multi-currency display",
+  "New drops and collections",
+  "Country-aware checkout",
+  "Server-validated orders",
+  "Responsive shopping",
+  "Portfolio commerce demo",
 ];
 
 function Ticker() {
@@ -82,6 +81,7 @@ function CategoryCard({ cat, index }: { cat: Category; index: number }) {
 
 // ── Deal card ─────────────────────────────────────────────────────────────────
 function DealCard({ product }: { product: Product }) {
+  const currency = useDisplayCurrency();
   const discount = product.compare_price
     ? Math.round(100 - (product.price / product.compare_price) * 100)
     : 0;
@@ -101,9 +101,9 @@ function DealCard({ product }: { product: Product }) {
           {[1,2,3,4,5].map(s => <Star key={s} size={10} fill="currentColor" />)}
         </div>
         <div className="mt-2 flex items-baseline gap-2">
-          <span className="font-black text-primary text-sm">{formatEtb(product.price)}</span>
+          <span className="font-black text-primary text-sm">{formatDisplayCurrency(product.price, currency)}</span>
           {product.compare_price && (
-            <span className="text-xs text-muted-foreground line-through">{formatEtb(product.compare_price)}</span>
+            <span className="text-xs text-muted-foreground line-through">{formatDisplayCurrency(product.compare_price, currency)}</span>
           )}
         </div>
       </div>
@@ -113,10 +113,10 @@ function DealCard({ product }: { product: Product }) {
 
 // ── Trust badges ──────────────────────────────────────────────────────────────
 const TRUST = [
-  { icon: Truck,       label: "Free Addis Delivery",  sub: "On all orders over ETB 500" },
-  { icon: RefreshCw,   label: "30-Day Returns",        sub: "No questions asked" },
-  { icon: ShieldCheck, label: "Genuine Products",      sub: "100% authentic guarantee" },
-  { icon: Headphones,  label: "24/7 Support",          sub: "Always here to help" },
+  { icon: Truck,       label: "Flexible destinations", sub: "Country-aware delivery details" },
+  { icon: RefreshCw,   label: "Clear order status",    sub: "Track pending order progress" },
+  { icon: ShieldCheck, label: "Validated checkout",    sub: "Server-checked product totals" },
+  { icon: Headphones,  label: "Support-ready",         sub: "Contact details configurable" },
 ];
 
 // ── Main page ─────────────────────────────────────────────────────────────────

@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   // Experimental features for better performance
   experimental: {
     optimizeServerReact: true,
+    serverActions: {
+      bodySizeLimit: '7mb',
+    },
   },
   
   // Compiler optimizations

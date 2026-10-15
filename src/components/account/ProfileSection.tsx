@@ -5,7 +5,7 @@ import { Award, Calendar, Camera, Mail, Phone, Save, ShieldCheck, UserRound, X }
 import { createClient } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { UserProfile } from '@/lib/supabase';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface ProfileSectionProps { user: SupabaseUser; profile: UserProfile | null; }
 type FormState = { full_name: string; username: string; phone: string; date_of_birth: string; gender: string };

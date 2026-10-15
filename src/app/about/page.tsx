@@ -14,12 +14,12 @@ const features = [
   {
     icon: <Zap size={32} />,
     title: "Fresh drops & offers",
-    desc: "Discover new arrivals, limited releases, and practical offers curated for everyday style in Ethiopia.",
+    desc: "Discover new arrivals, limited releases, and collections built for everyday style.",
   },
   {
     icon: <ShieldCheck size={32} />,
-    title: "Trusted support",
-    desc: "Our team helps with fit, product details, availability, and order questions before and after your purchase.",
+    title: "Support-ready design",
+    desc: "Product, availability, and order support surfaces are structured to connect to a real support workflow.",
   },
   {
     icon: <Heart size={32} />,
@@ -28,13 +28,13 @@ const features = [
   },
   {
     icon: <TrendingUp size={32} />,
-    title: "Fair ETB pricing",
-    desc: "Clear Ethiopian Birr pricing helps shoppers compare products confidently without hidden currency surprises.",
+    title: "Flexible currency display",
+    desc: "Preview catalog prices in ETB, USD, EUR, GBP, or CAD using clearly identified demo conversion rates.",
   },
   {
     icon: <Truck size={32} />,
-    title: "Addis-focused delivery",
-    desc: "We are building a convenient local shopping experience for Addis Ababa customers, with delivery information made clear.",
+    title: "Destination-aware checkout",
+    desc: "Capture country and address details in a checkout flow designed to support future shipping integrations.",
   },
 ];
 
@@ -62,7 +62,7 @@ export default function AboutPage() {
             ABOUT <span className="text-primary">AK DROP</span>
           </h1>
           <p className="text-xl md:text-2xl text-foreground/80 max-w-2xl mx-auto font-medium">
-            A modern Ethiopian storefront for shoes, apparel, accessories, and everyday personal style.
+            A global-ready commerce portfolio for footwear, apparel, accessories, and everyday style.
           </p>
         </motion.div>
       </section>
@@ -103,13 +103,14 @@ export default function AboutPage() {
 
             <div className="space-y-6 text-lg text-foreground/70 leading-relaxed font-medium">
               <p>
-                AK Drop brings together footwear, shirts, apparel, bags, and accessories in one
-                product-first shopping experience. We are inspired by Addis Ababa&apos;s energy and
-                by customers who want modern style without a complicated buying journey.
+                AK Drop brings together footwear, apparel, bags, and accessories in a product-first
+                shopping experience. The portfolio demonstrates how a modern storefront can make
+                discovery and ordering feel simple across devices.
               </p>
               <p>
-                Our goal is to make discovery easier: useful product details, ETB prices, clear
-                availability, local support, and a catalogue that keeps growing beyond shoes.
+                The experience includes searchable collections, cart persistence, configurable
+                display currencies, account-based order history, and a country-aware checkout flow.
+                Payment processing and carrier integrations are intentionally not enabled in this demo.
               </p>
               <div className="glass-card p-8 border-l-4 border-primary">
                 <p className="text-foreground italic">
@@ -127,10 +128,10 @@ export default function AboutPage() {
         <div className="flex whitespace-nowrap animate-marquee">
           {[1, 2].map((i) => (
             <div key={i} className="flex items-center gap-12 px-6">
-              <span className="text-sm font-black uppercase tracking-widest text-primary/60">Curated in Ethiopia</span>
-              <span className="text-sm font-black uppercase tracking-widest text-primary/60">Prices in Ethiopian Birr</span>
-              <span className="text-sm font-black uppercase tracking-widest text-primary/60">Made for Addis style</span>
-              <span className="text-sm font-black uppercase tracking-widest text-primary/60">New drops coming soon</span>
+              <span className="text-sm font-black uppercase tracking-widest text-primary/60">Multi-category catalog</span>
+              <span className="text-sm font-black uppercase tracking-widest text-primary/60">Multi-currency display</span>
+              <span className="text-sm font-black uppercase tracking-widest text-primary/60">Country-aware checkout</span>
+              <span className="text-sm font-black uppercase tracking-widest text-primary/60">Commerce portfolio demo</span>
             </div>
           ))}
         </div>
@@ -141,16 +142,16 @@ export default function AboutPage() {
         <div className="container mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}>
-              <span className="text-6xl md:text-7xl font-black text-primary italic">ETB</span>
-              <p className="text-lg font-black uppercase tracking-widest text-foreground/40">Local pricing</p>
+              <span className="text-6xl md:text-7xl font-black text-primary italic">5</span>
+              <p className="text-lg font-black uppercase tracking-widest text-foreground/40">Display currencies</p>
             </motion.div>
             <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
               <span className="text-6xl md:text-7xl font-black text-primary italic">24/7</span>
               <p className="text-lg font-black uppercase tracking-widest text-foreground/40">Online browsing</p>
             </motion.div>
             <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
-              <span className="text-6xl md:text-7xl font-black text-primary italic">ADDIS</span>
-              <p className="text-lg font-black uppercase tracking-widest text-foreground/40">Delivery focus</p>
+              <span className="text-6xl md:text-7xl font-black text-primary italic">GLOBAL</span>
+              <p className="text-lg font-black uppercase tracking-widest text-foreground/40">Checkout-ready address flow</p>
             </motion.div>
           </div>
         </div>

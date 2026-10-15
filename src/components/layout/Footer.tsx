@@ -1,24 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Phone, MapPin, ArrowUpRight } from "lucide-react";
-import {
-  FaInstagram,
-  FaFacebook,
-  FaTiktok,
-  FaTelegram,
-  FaYoutube,
-  FaXTwitter,
-} from "react-icons/fa6";
-
-const socialLinks = [
-  { icon: <FaInstagram size={17} />, href: "#",                              label: "Instagram" },
-  { icon: <FaFacebook  size={17} />, href: "#",                              label: "Facebook"  },
-  { icon: <FaXTwitter  size={17} />, href: "#",                              label: "X / Twitter" },
-  { icon: <FaTiktok    size={17} />, href: "#",                              label: "TikTok"    },
-  { icon: <FaTelegram  size={17} />, href: "https://t.me/akdrop",            label: "Telegram"  },
-  { icon: <FaYoutube   size={17} />, href: "#",                              label: "YouTube"   },
-];
+import { ArrowUpRight } from "lucide-react";
 
 const shopLinks = [
   { label: "All products",       href: "/shop" },
@@ -31,7 +14,6 @@ const supportLinks = [
   { label: "About AK Drop",   href: "/about" },
   { label: "Contact us",      href: "/contact" },
   { label: "Shopping bag",    href: "/cart" },
-  { label: "WhatsApp support", href: "https://wa.me/251902377627", external: true },
 ];
 
 function FooterLink({
@@ -96,24 +78,10 @@ export default function Footer() {
                 DROP
               </span>
             </Link>
-            <p className="text-foreground/70 text-sm leading-relaxed mb-6">
-              Curated footwear, apparel, and everyday style for Addis and beyond.
-              Shop confidently from a modern Ethiopian storefront.
+            <p className="text-foreground/70 text-sm leading-relaxed">
+              Curated footwear, apparel, and everyday style. Discover pieces
+              selected to bring confidence to every day.
             </p>
-            <div className="flex flex-wrap gap-3">
-              {socialLinks.map(({ icon, href, label }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  target={href.startsWith("http") ? "_blank" : undefined}
-                  rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
-                  className="p-2 bg-foreground/5 rounded-full hover:bg-primary hover:text-primary-foreground hover:scale-110 transition-all duration-200"
-                >
-                  {icon}
-                </a>
-              ))}
-            </div>
           </div>
 
           {/* Shop links */}
@@ -134,7 +102,7 @@ export default function Footer() {
             <ul className="space-y-4 text-sm">
               {supportLinks.map((l) => (
                 <li key={l.href}>
-                  <FooterLink href={l.href} label={l.label} external={l.external} />
+                  <FooterLink href={l.href} label={l.label} />
                 </li>
               ))}
             </ul>
@@ -142,28 +110,11 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="font-bold mb-6 text-sm uppercase tracking-widest">
-              Addis delivery
-            </h4>
+            <h4 className="font-bold mb-6 text-sm uppercase tracking-widest">Contact</h4>
             <p className="text-foreground/70 text-sm leading-relaxed mb-5">
-              Questions about fit, delivery, or availability? Our team is ready to help.
+              Questions about fit, delivery, or availability? We&apos;re here to help.
             </p>
-            <div className="space-y-3 text-sm text-foreground/70">
-              <p className="flex items-center gap-2">
-                <MapPin size={16} className="text-primary shrink-0" />
-                Addis Ababa, Ethiopia
-              </p>
-              <a
-                href="tel:+251902377627"
-                className="group flex items-center gap-2 hover:text-primary transition-colors duration-200 w-fit"
-              >
-                <Phone size={16} className="text-primary shrink-0" />
-                <span className="relative">
-                  +251 902 377 627
-                  <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
-                </span>
-              </a>
-            </div>
+            <FooterLink href="/contact" label="Get in touch" />
           </div>
 
         </div>
@@ -171,7 +122,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between text-xs text-foreground/40">
           <p>© {year} AK Drop. All rights reserved.</p>
-          <p className="mt-3 md:mt-0">Prices shown in Ethiopian Birr (ETB)</p>
+          <p className="mt-3 md:mt-0">Orders are stored in ETB · display conversions are illustrative</p>
         </div>
       </div>
     </footer>

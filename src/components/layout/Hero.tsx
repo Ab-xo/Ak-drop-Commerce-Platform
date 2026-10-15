@@ -8,7 +8,7 @@ import gsap from "gsap";
 
 const heroSlides = [
   { id: 1, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=90&w=2400", tag: "New Drop", title: "PREMIUM", titleAccent: "FOOTWEAR", description: "Iconic silhouettes. Exclusive colourways. Step into the latest drops from the world's most coveted sneaker labels." },
-  { id: 2, image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=90&w=2400", tag: "Apparel", title: "STREET", titleAccent: "STYLE", description: "Shirts, hoodies, and everyday fits built for Addis Ababa energy. Wear the culture." },
+  { id: 2, image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=90&w=2400", tag: "Apparel", title: "STREET", titleAccent: "STYLE", description: "Shirts, hoodies, and everyday fits designed for wherever your style takes you." },
   { id: 3, image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=90&w=2400", tag: "Accessories", title: "FINISH", titleAccent: "THE LOOK", description: "Bags, caps, watches, and the details that complete every outfit." },
 ];
 

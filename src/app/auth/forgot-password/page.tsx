@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { requestPasswordReset } from '@/lib/auth-actions';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
