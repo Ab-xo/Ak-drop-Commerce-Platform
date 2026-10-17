@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   keywords: "fashion, footwear, commerce portfolio, AK Drop, shoes, apparel",
   authors: [{ name: "AK Drop" }],
   robots: "index, follow",
+  icons: {
+    icon: [{ url: "/ak-drop-icon.svg", type: "image/svg+xml" }],
+    shortcut: "/ak-drop-icon.svg",
+  },
 };
 
 export const viewport = {
