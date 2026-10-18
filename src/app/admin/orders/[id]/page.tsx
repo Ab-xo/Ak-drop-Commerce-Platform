@@ -29,7 +29,7 @@ export default async function AdminOrderDetailsPage({ params }: { params: Promis
   const admin = createAdminClient();
   const { data: order, error } = await admin
     .from('orders')
-    .select('id, order_number, user_id, status, payment_status, payment_method, total_amount, subtotal_amount, delivery_fee_amount, total_is_final, currency, shipping_address, created_at, order_items(id, product_name, product_sku, product_image, quantity, unit_price, total_price, size, color), payments(amount, currency, status, payment_method, failure_message, created_at)')
+    .select('id, order_number, user_id, status, payment_status, payment_method, total_amount, subtotal_amount, delivery_fee_amount, total_is_final, currency, shipping_address, created_at, order_items(id, product_name, product_sku, product_image, quantity, unit_price, total_price, size, color, variant_attributes), payments(amount, currency, status, payment_method, failure_message, created_at)')
     .eq('id', id)
     .maybeSingle();
 
@@ -104,6 +104,7 @@ export default async function AdminOrderDetailsPage({ params }: { params: Promis
                       <p className="mt-1 text-xs text-muted-foreground">
                         {item.product_sku ? `SKU ${item.product_sku} · ` : ''}Qty {item.quantity}
                         {item.size ? ` · Size ${item.size}` : ''}{item.color ? ` · ${item.color}` : ''}
+                        {Object.entries(item.variant_attributes ?? {}).map(([name, value]) => ` · ${name}: ${String(value)}`)}
                       </p>
                     </div>
                     <p className="shrink-0 text-sm font-bold tabular-nums">

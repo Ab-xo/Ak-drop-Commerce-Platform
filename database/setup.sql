@@ -397,6 +397,9 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+ALTER TABLE public.order_items
+    ADD COLUMN IF NOT EXISTS variant_attributes JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_product ON public.order_items(product_id);
 
@@ -473,9 +476,10 @@ DECLARE
     v_order_number TEXT;
     v_subtotal DECIMAL(10,2) := 0;
     v_product RECORD;
+    v_variant RECORD;
     v_item RECORD;
-    v_quantity INTEGER;
     v_unit_price DECIMAL(10,2);
+    v_has_variants BOOLEAN;
 BEGIN
     IF v_user_id IS NULL THEN
         RAISE EXCEPTION USING MESSAGE = 'ORDER_AUTH_REQUIRED', ERRCODE = '28000';
@@ -513,13 +517,16 @@ BEGIN
         FROM jsonb_array_elements(p_items) AS line(value)
         WHERE jsonb_typeof(line.value) <> 'object'
            OR COALESCE(line.value->>'product_id', '') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           OR COALESCE(line.value->>'variant_id', '') !~* '^$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
            OR COALESCE(line.value->>'quantity', '') !~ '^[1-9][0-9]{0,2}$'
            OR COALESCE(line.value->>'expected_unit_price', '') !~ '^[0-9]+(\.[0-9]{1,2})?$'
     ) THEN
         RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ITEMS', ERRCODE = '22023';
     END IF;
     IF (
-        SELECT count(*) <> count(DISTINCT (line.value->>'product_id')::UUID)
+        SELECT count(*) <> count(DISTINCT (
+            (line.value->>'product_id') || ':' || COALESCE(NULLIF(line.value->>'variant_id', ''), 'default')
+        ))
         FROM jsonb_array_elements(p_items) AS line(value)
     ) THEN
         RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_ITEMS', ERRCODE = '22023';
@@ -551,15 +558,26 @@ BEGIN
         );
     END IF;
 
-    -- Lock each product in a stable order; recheck idempotency before inventory.
+    -- Lock products and variants in a stable order before validating stock.
     FOR v_item IN
-        SELECT (line.value->>'product_id')::UUID AS product_id
+        SELECT DISTINCT (line.value->>'product_id')::UUID AS product_id
         FROM jsonb_array_elements(p_items) AS line(value)
-        ORDER BY (line.value->>'product_id')
+        ORDER BY product_id
     LOOP
         SELECT id INTO v_product
         FROM public.products
         WHERE id = v_item.product_id
+        FOR UPDATE;
+    END LOOP;
+    FOR v_item IN
+        SELECT DISTINCT NULLIF(line.value->>'variant_id', '')::UUID AS variant_id
+        FROM jsonb_array_elements(p_items) AS line(value)
+        WHERE NULLIF(line.value->>'variant_id', '') IS NOT NULL
+        ORDER BY variant_id
+    LOOP
+        PERFORM id
+        FROM public.product_variants
+        WHERE id = v_item.variant_id
         FOR UPDATE;
     END LOOP;
 
@@ -584,10 +602,11 @@ BEGIN
 
     FOR v_item IN
         SELECT (line.value->>'product_id')::UUID AS product_id,
+               NULLIF(line.value->>'variant_id', '')::UUID AS variant_id,
                (line.value->>'quantity')::INTEGER AS quantity,
                (line.value->>'expected_unit_price')::DECIMAL(10,2) AS expected_unit_price
         FROM jsonb_array_elements(p_items) AS line(value)
-        ORDER BY (line.value->>'product_id')
+        ORDER BY (line.value->>'product_id'), COALESCE(line.value->>'variant_id', '')
     LOOP
         SELECT id, name, slug, price, sku, quantity, track_quantity, images, is_active
         INTO v_product
@@ -600,17 +619,49 @@ BEGIN
         IF v_product.price IS NULL OR v_product.price < 0 THEN
             RAISE EXCEPTION USING MESSAGE = 'ORDER_PRODUCT_UNAVAILABLE', ERRCODE = '22023';
         END IF;
-        IF v_product.price <> v_item.expected_unit_price THEN
+
+        SELECT EXISTS (
+            SELECT 1 FROM public.product_variants
+            WHERE product_id = v_item.product_id
+        ) INTO v_has_variants;
+
+        IF v_item.variant_id IS NULL AND v_has_variants THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_VARIANT_REQUIRED', ERRCODE = '22023';
+        ELSIF v_item.variant_id IS NOT NULL THEN
+            SELECT id, product_id, sku, size, color, attributes, price_adjustment,
+                   price_override, stock_quantity, is_active, image_url
+            INTO v_variant
+            FROM public.product_variants
+            WHERE id = v_item.variant_id
+              AND product_id = v_item.product_id
+              AND is_active = TRUE;
+            IF NOT FOUND THEN
+                RAISE EXCEPTION USING MESSAGE = 'ORDER_VARIANT_UNAVAILABLE', ERRCODE = '22023';
+            END IF;
+            v_unit_price := COALESCE(
+                v_variant.price_override,
+                v_product.price + COALESCE(v_variant.price_adjustment, 0)
+            );
+            IF COALESCE(v_variant.stock_quantity, 0) < v_item.quantity THEN
+                RAISE EXCEPTION USING MESSAGE = 'ORDER_STOCK_CHANGED', ERRCODE = '22023';
+            END IF;
+        ELSE
+            v_unit_price := v_product.price;
+            IF COALESCE(v_product.track_quantity, TRUE)
+               AND COALESCE(v_product.quantity, 0) < v_item.quantity THEN
+                RAISE EXCEPTION USING MESSAGE = 'ORDER_STOCK_CHANGED', ERRCODE = '22023';
+            END IF;
+        END IF;
+        IF v_unit_price IS NULL OR v_unit_price < 0 THEN
+            RAISE EXCEPTION USING MESSAGE = 'ORDER_PRODUCT_UNAVAILABLE', ERRCODE = '22023';
+        END IF;
+        IF v_unit_price <> v_item.expected_unit_price THEN
             RAISE EXCEPTION USING MESSAGE = 'ORDER_PRICE_CHANGED', ERRCODE = '22023';
         END IF;
-        IF COALESCE(v_product.track_quantity, TRUE)
-           AND COALESCE(v_product.quantity, 0) < v_item.quantity THEN
-            RAISE EXCEPTION USING MESSAGE = 'ORDER_STOCK_CHANGED', ERRCODE = '22023';
-        END IF;
-        IF v_product.price > (99999999.99 - v_subtotal) / v_item.quantity THEN
+        IF v_unit_price > (99999999.99 - v_subtotal) / v_item.quantity THEN
             RAISE EXCEPTION USING MESSAGE = 'ORDER_TOTAL_LIMIT', ERRCODE = '22023';
         END IF;
-        v_subtotal := v_subtotal + (v_product.price * v_item.quantity);
+        v_subtotal := v_subtotal + (v_unit_price * v_item.quantity);
     END LOOP;
 
     INSERT INTO public.orders (
@@ -659,28 +710,48 @@ BEGIN
 
     FOR v_item IN
         SELECT (line.value->>'product_id')::UUID AS product_id,
+               NULLIF(line.value->>'variant_id', '')::UUID AS variant_id,
                (line.value->>'quantity')::INTEGER AS quantity
         FROM jsonb_array_elements(p_items) AS line(value)
-        ORDER BY (line.value->>'product_id')
+        ORDER BY (line.value->>'product_id'), COALESCE(line.value->>'variant_id', '')
     LOOP
-        UPDATE public.products
-        SET quantity = quantity - v_item.quantity
-        WHERE id = v_item.product_id AND COALESCE(track_quantity, TRUE);
-
         SELECT id, name, slug, price, sku, images
         INTO v_product
         FROM public.products
         WHERE id = v_item.product_id;
-        v_unit_price := v_product.price;
+        SELECT sku, size, color, attributes, price_adjustment, price_override, image_url
+        INTO v_variant
+        FROM public.product_variants
+        WHERE id = v_item.variant_id AND product_id = v_item.product_id;
+        IF v_item.variant_id IS NOT NULL THEN
+            v_unit_price := COALESCE(
+                v_variant.price_override,
+                v_product.price + COALESCE(v_variant.price_adjustment, 0)
+            );
+            UPDATE public.product_variants
+            SET stock_quantity = stock_quantity - v_item.quantity
+            WHERE id = v_item.variant_id
+              AND stock_quantity >= v_item.quantity;
+        ELSE
+            v_unit_price := v_product.price;
+            UPDATE public.products
+            SET quantity = quantity - v_item.quantity
+            WHERE id = v_item.product_id
+              AND COALESCE(track_quantity, TRUE)
+              AND quantity >= v_item.quantity;
+        END IF;
 
         INSERT INTO public.order_items (
             order_id, product_id, product_name, product_slug, product_image,
-            product_sku, quantity, unit_price, total_price
+            product_sku, quantity, unit_price, total_price, variant_id,
+            variant_attributes, size, color
         )
         VALUES (
             v_order_id, v_item.product_id, v_product.name, v_product.slug,
-            v_product.images->>0, v_product.sku, v_item.quantity,
-            v_unit_price, v_unit_price * v_item.quantity
+            COALESCE(v_variant.image_url, v_product.images->>0),
+            COALESCE(v_variant.sku, v_product.sku), v_item.quantity,
+            v_unit_price, v_unit_price * v_item.quantity, v_item.variant_id,
+            COALESCE(v_variant.attributes, '{}'::jsonb), v_variant.size, v_variant.color
         );
     END LOOP;
 
@@ -805,11 +876,17 @@ BEGIN
         failure_message = 'Stripe Checkout could not be started',
         updated_at = NOW()
     WHERE order_id = p_order_id AND status = 'pending';
+    UPDATE public.product_variants AS variant
+    SET stock_quantity = COALESCE(variant.stock_quantity, 0) + order_item.quantity
+    FROM public.order_items AS order_item
+    WHERE order_item.order_id = p_order_id
+      AND order_item.variant_id = variant.id;
     UPDATE public.products AS product
     SET quantity = COALESCE(product.quantity, 0) + order_item.quantity
     FROM public.order_items AS order_item
     WHERE order_item.order_id = p_order_id
       AND order_item.product_id = product.id
+      AND order_item.variant_id IS NULL
       AND COALESCE(product.track_quantity, TRUE);
 
     RETURN TRUE;
@@ -912,11 +989,17 @@ BEGIN
     WHERE id = v_order_id;
     DELETE FROM public.user_notifications
     WHERE order_id = v_order_id AND title = 'Payment pending';
+    UPDATE public.product_variants AS variant
+    SET stock_quantity = COALESCE(variant.stock_quantity, 0) + order_item.quantity
+    FROM public.order_items AS order_item
+    WHERE order_item.order_id = v_order_id
+      AND order_item.variant_id = variant.id;
     UPDATE public.products AS product
     SET quantity = COALESCE(product.quantity, 0) + order_item.quantity
     FROM public.order_items AS order_item
     WHERE order_item.order_id = v_order_id
       AND order_item.product_id = product.id
+      AND order_item.variant_id IS NULL
       AND COALESCE(product.track_quantity, TRUE);
 END;
 $$;
@@ -1034,8 +1117,17 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+ALTER TABLE public.product_variants
+    ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS price_override DECIMAL(10,2)
+        CHECK (price_override IS NULL OR price_override >= 0);
+
+ALTER TABLE public.order_items
+    ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES public.product_variants(id) ON DELETE RESTRICT;
+
 CREATE INDEX IF NOT EXISTS idx_variants_product ON public.product_variants(product_id);
 CREATE INDEX IF NOT EXISTS idx_variants_sku ON public.product_variants(sku);
+CREATE INDEX IF NOT EXISTS idx_order_items_variant ON public.order_items(variant_id);
 
 -- 8. WISHLIST TABLE
 -- Stores user wishlists
@@ -1170,7 +1262,15 @@ ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone can view active variants" ON public.product_variants;
 CREATE POLICY "Anyone can view active variants" ON public.product_variants
-    FOR SELECT USING (is_active = true);
+    FOR SELECT USING (
+        is_active = true
+        AND EXISTS (
+            SELECT 1
+            FROM public.products AS product
+            WHERE product.id = product_variants.product_id
+              AND product.is_active = true
+        )
+    );
 
 -- WISHLIST
 ALTER TABLE public.wishlist ENABLE ROW LEVEL SECURITY;

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { formatDisplayCurrency } from "@/lib/currency";
 import { useDisplayCurrency } from "@/store/currencyStore";
+import { getAvailableProductStock, getCartLineId, getVariantLabel } from "@/lib/product-variants";
 
 const subscribeToHydration = () => () => {};
 const getHydrationSnapshot = () => true;
@@ -77,7 +78,7 @@ const CartDrawer = () => {
                                 </div>
                             ) : (
                                 items.map((item) => (
-                                    <div key={item.id} className="flex gap-4 group">
+                                    <div key={getCartLineId(item.id, item.variantId ?? null)} className="flex gap-4 group">
                                         <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-border">
                                             <Image
                                                 src={getProductImageUrl(item.main_image)}
@@ -88,26 +89,32 @@ const CartDrawer = () => {
                                         </div>
                                         <div className="flex-grow min-w-0">
                                             <h3 className="font-bold text-sm truncate uppercase italic">{item.name}</h3>
+                                            {item.selectedVariant && <p className="mt-1 text-[10px] text-muted-foreground">{getVariantLabel(item.selectedVariant)}</p>}
+                                            {item.availabilityError && <p className="mt-1 text-[10px] text-destructive">{item.availabilityError}</p>}
                                             <p className="text-primary font-black text-xs mb-3 font-mono tracking-tighter">{formatDisplayCurrency(item.price, currency)}</p>
 
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 bg-foreground/5 rounded-full px-2 py-1 border border-border">
                                                     <button
-                                                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        aria-label={`Decrease quantity of ${item.name}`}
+                                                        onClick={() => updateQuantity(getCartLineId(item.id, item.variantId ?? null), item.quantity - 1)}
                                                         className="hover:text-primary transition-colors p-0.5"
                                                     >
                                                         <Minus size={12} />
                                                     </button>
                                                     <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
                                                     <button
-                                                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                        aria-label={`Increase quantity of ${item.name}`}
+                                                        disabled={item.quantity >= (item.selectedVariant?.stock_quantity ?? getAvailableProductStock(item))}
+                                                        onClick={() => updateQuantity(getCartLineId(item.id, item.variantId ?? null), item.quantity + 1)}
                                                         className="hover:text-primary transition-colors p-0.5"
                                                     >
                                                         <Plus size={12} />
                                                     </button>
                                                 </div>
                                                 <button
-                                                    onClick={() => removeItem(item.id)}
+                                                    aria-label={`Remove ${item.name} from cart`}
+                                                    onClick={() => removeItem(getCartLineId(item.id, item.variantId ?? null))}
                                                     className="text-foreground/20 hover:text-destructive transition-colors p-1"
                                                 >
                                                     <Trash2 size={14} />
@@ -136,8 +143,15 @@ const CartDrawer = () => {
                                     </Link>
                                     <Link
                                         href="/checkout"
-                                        onClick={() => setCartOpen(false)}
-                                        className="py-4 rounded-xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                        onClick={(event) => {
+                                            if (items.some((item) => Boolean(item.availabilityError))) {
+                                                event.preventDefault();
+                                                return;
+                                            }
+                                            setCartOpen(false);
+                                        }}
+                                        aria-disabled={items.some((item) => Boolean(item.availabilityError))}
+                                        className={`py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${items.some((item) => Boolean(item.availabilityError)) ? "bg-secondary text-muted-foreground" : "bg-primary text-primary-foreground hover:scale-[1.02] active:scale-[0.98]"}`}
                                     >
                                         Checkout <ArrowRight size={14} />
                                     </Link>

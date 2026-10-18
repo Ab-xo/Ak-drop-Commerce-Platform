@@ -72,7 +72,8 @@ TypeScript/React; SQL is used only for the PostgreSQL database setup.
 ## Features
 
 - Multi-category product browsing, search, filters, sorting, and pagination
-- Product detail pages and persistent shopping cart
+- Product detail pages with variant-specific options, prices, and availability
+- Persistent variant-aware shopping cart with current stock and price reconciliation
 - ETB, USD, EUR, GBP, and CAD display options with illustrative portfolio rates
 - Country-aware delivery-address capture for future shipping integrations
 - Email/password and Google OAuth authentication through Supabase
@@ -150,7 +151,12 @@ Run [`database/setup.sql`](./database/setup.sql) in the Supabase SQL Editor.
 This is the repository's sole SQL setup file and creates the profile, catalog,
 order, and commerce tables with row-level security policies. It intentionally
 does not insert sample products or categories. Add catalog data before using
-the shop.
+the shop. Products with option rows in `product_variants` require customers to
+choose an active option; variant attributes, price overrides, stock, and
+optional images are supported. The updated setup adds variant fields to order
+snapshots and makes checkout reserve variant inventory atomically. Apply it to
+the connected Supabase project before testing variant checkout. Product-option
+authoring is not yet available in the admin UI.
 
 [`database/create-product.sql`](./database/create-product.sql) updates the
 existing Urban Commuter Backpack (`AK-BG-001`) with four public gallery image

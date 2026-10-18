@@ -20,18 +20,40 @@ export type Product = {
   category?: Category;
   stock: number;
   quantity?: number;
+  track_quantity?: boolean;
   main_image: string;
   images: string[];
   features?: string[];
   tags?: string[];
   attributes?: Record<string, unknown>;
+  variants?: ProductVariant[];
   is_featured?: boolean;
   is_new_arrival?: boolean;
   is_active?: boolean;
   created_at: string;
 };
 
-export type CartItem = Product & { quantity: number };
+export type ProductVariant = {
+  id: string;
+  product_id: string;
+  sku: string | null;
+  size: string | null;
+  color: string | null;
+  attributes: Record<string, string>;
+  price_adjustment: number;
+  price_override: number | null;
+  stock_quantity: number;
+  is_active: boolean;
+  image_url: string | null;
+};
+
+export type CartItem = Product & {
+  quantity: number;
+  cartLineId: string;
+  variantId: string | null;
+  selectedVariant: ProductVariant | null;
+  availabilityError: string | null;
+};
 
 export type Order = {
   id: string;

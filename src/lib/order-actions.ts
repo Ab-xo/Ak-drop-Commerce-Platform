@@ -11,6 +11,7 @@ const checkoutSchema = z.object({
   idempotencyKey: z.string().uuid(),
   items: z.array(z.object({
     productId: z.string().uuid(),
+    variantId: z.string().uuid().nullable(),
     quantity: z.number().int().min(1).max(999),
     expectedUnitPrice: z.number().finite().nonnegative(),
   })).min(1).max(30),
@@ -28,7 +29,7 @@ const checkoutSchema = z.object({
   acceptedTerms: z.literal(true),
 });
 
-type PriceUpdate = { productId: string; price: number };
+type PriceUpdate = { productId: string; variantId: string | null; price: number };
 
 export async function placeOrder(input: unknown) {
   const validated = checkoutSchema.safeParse(input);
@@ -73,6 +74,7 @@ export async function placeOrder(input: unknown) {
     p_idempotency_key: validated.data.idempotencyKey,
     p_items: validated.data.items.map((item) => ({
       product_id: item.productId,
+      ...(item.variantId ? { variant_id: item.variantId } : {}),
       quantity: item.quantity,
       expected_unit_price: item.expectedUnitPrice,
     })),
@@ -89,7 +91,7 @@ export async function placeOrder(input: unknown) {
     if (error.message.includes('ORDER_PRICE_CHANGED')) {
       const { data: products, error: productsError } = await supabase
         .from('products')
-        .select('id, price')
+        .select('id, price, product_variants(id, price_adjustment, price_override, is_active)')
         .in('id', validated.data.items.map((item) => item.productId))
         .eq('is_active', true);
 
@@ -97,14 +99,31 @@ export async function placeOrder(input: unknown) {
         console.error('Checkout price refresh error:', productsError.message);
         return { error: 'A product price changed. Return to your cart and try again.' };
       }
-      const priceUpdates: PriceUpdate[] = (products ?? []).map((product) => ({
-        productId: product.id,
-        price: Number(product.price),
-      }));
+      const priceUpdates: PriceUpdate[] = validated.data.items.flatMap((item) => {
+        const product = products?.find((candidate) => candidate.id === item.productId);
+        if (!product) return [];
+        const variant = item.variantId
+          ? product.product_variants?.find((candidate) => candidate.id === item.variantId && candidate.is_active)
+          : null;
+        if (item.variantId && !variant) return [];
+        return [{
+          productId: item.productId,
+          variantId: item.variantId,
+          price: variant
+            ? Number(variant.price_override ?? Number(product.price) + Number(variant.price_adjustment ?? 0))
+            : Number(product.price),
+        }];
+      });
       return { error: 'A product price changed. Review the updated cart total and place your order again.', priceUpdates };
     }
     if (error.message.includes('ORDER_STOCK_CHANGED')) {
       return { error: 'One or more items no longer have enough stock. Update your cart and try again.' };
+    }
+    if (error.message.includes('ORDER_VARIANT_REQUIRED')) {
+      return { error: 'Choose an available size or option for each configurable product.' };
+    }
+    if (error.message.includes('ORDER_VARIANT_UNAVAILABLE')) {
+      return { error: 'One or more selected options are no longer available. Refresh your cart and try again.' };
     }
     if (error.message.includes('ORDER_PRODUCT_UNAVAILABLE')) {
       return { error: 'One or more products are no longer available. Remove them from your cart and try again.' };
@@ -261,15 +280,14 @@ export async function placeOrder(input: unknown) {
     return { error: 'We could not start secure payment. Please try again.' };
   }
 
-  const productIds = validated.data.items.map((item) => item.productId);
-  const { data: orderProducts, error: orderProductsError } = await admin
-    .from('products')
-    .select('id, name, price')
-    .in('id', productIds)
-    .eq('is_active', true);
+  const { data: orderItems, error: orderItemsError } = await admin
+    .from('order_items')
+    .select('product_name, product_sku, quantity, unit_price, size, color, variant_attributes')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: true });
 
-  if (orderProductsError || !orderProducts || orderProducts.length !== productIds.length) {
-    console.error('Unable to load the verified products for Stripe Checkout:', orderProductsError?.message ?? 'Product data is incomplete.');
+  if (orderItemsError || !orderItems?.length) {
+    console.error('Unable to load the verified order item snapshots for Stripe Checkout:', orderItemsError?.message ?? 'Order items are missing.');
     const { error: cancelError } = await admin.rpc('cancel_unpaid_stripe_order', {
       p_order_id: orderId,
     });
@@ -280,21 +298,28 @@ export async function placeOrder(input: unknown) {
     };
   }
 
-  const stripeLineItems = validated.data.items.map((item) => {
-    const product = orderProducts.find((candidate) => candidate.id === item.productId);
-    if (!product) return null;
-    const unitPriceEtb = Math.round(Number(product.price) * 100);
+  const stripeLineItems = orderItems.map((item) => {
+    const unitPriceEtb = Math.round(Number(item.unit_price) * 100);
+    const attributes = item.variant_attributes && typeof item.variant_attributes === 'object'
+      ? Object.entries(item.variant_attributes)
+          .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+          .map(([name, value]) => `${name}: ${value}`)
+      : [];
+    const optionDescription = [item.size ? `Size ${item.size}` : null, item.color, ...attributes]
+      .filter((value): value is string => Boolean(value))
+      .join(' · ');
     return {
-      productId: product.id,
-      name: product.name,
-      quantity: item.quantity,
+      name: item.product_name,
+      sku: item.product_sku,
+      quantity: Number(item.quantity),
       unitPriceEtb,
-      exactUsdCents: (unitPriceEtb * item.quantity) / ETB_PER_DISPLAY_UNIT.USD,
+      optionDescription,
+      exactUsdCents: (unitPriceEtb * Number(item.quantity)) / ETB_PER_DISPLAY_UNIT.USD,
     };
   });
 
-  if (stripeLineItems.some((item) => !item || !Number.isFinite(item.exactUsdCents))) {
-    console.error('Verified Stripe Checkout product data contains an invalid price.');
+  if (stripeLineItems.some((item) => !Number.isSafeInteger(item.unitPriceEtb) || !Number.isFinite(item.exactUsdCents))) {
+    console.error('Verified Stripe Checkout order snapshots contain an invalid price.');
     const { error: cancelError } = await admin.rpc('cancel_unpaid_stripe_order', {
       p_order_id: orderId,
     });
@@ -374,8 +399,8 @@ export async function placeOrder(input: unknown) {
           currency: 'usd',
           unit_amount: stripeAmountsCents[index],
           product_data: {
-            name: `${item.name} · Qty ${item.quantity}`,
-            description: `AK Drop order ${orderNumber}. Product subtotal only; delivery is not included.`,
+            name: `${item.name}${item.sku ? ` · ${item.sku}` : ''}${item.optionDescription ? ` · ${item.optionDescription}` : ''}`,
+            description: `AK Drop order ${orderNumber} · Qty ${item.quantity}. Product subtotal only; delivery is not included.`,
           },
         },
         quantity: 1,

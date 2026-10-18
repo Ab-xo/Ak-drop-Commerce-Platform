@@ -10,6 +10,8 @@ import { useCartStore } from '@/store/cartStore';
 import { useDisplayCurrency } from '@/store/currencyStore';
 import CurrencySwitcher from '@/components/ui/CurrencySwitcher';
 import { getProductImageUrl } from '@/utils/imageUtils';
+import { getCartLineId, getVariantLabel } from '@/lib/product-variants';
+import { useReconcileCart } from '@/hooks/useReconcileCart';
 
 type Address = {
   full_name: string;
@@ -55,6 +57,7 @@ function clearStoredCheckoutRequest() {
 export default function CheckoutForm({ initialAddress, paymentCancelled }: Props) {
   const { items, updatePrices } = useCartStore();
   const currency = useDisplayCurrency();
+  const reconciliation = useReconcileCart();
   const [address, setAddress] = useState(initialAddress);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errorMessage, setErrorMessage] = useState(
@@ -82,6 +85,7 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
     try {
       const checkoutItems = items.map((item) => ({
         productId: item.id,
+        variantId: item.variantId ?? null,
         quantity: item.quantity,
         expectedUnitPrice: Number(item.price),
       }));
@@ -254,6 +258,17 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
                 </label>
               </section>
 
+              {items.some((item) => Boolean(item.availabilityError)) && (
+                <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  <p className="font-semibold">Your cart needs attention before checkout:</p>
+                  <ul className="mt-2 list-inside list-disc space-y-1">
+                    {items.filter((item) => item.availabilityError).map((item) => (
+                      <li key={getCartLineId(item.id, item.variantId ?? null)}>{item.name}: {item.availabilityError}</li>
+                    ))}
+                  </ul>
+                  <Link href="/cart" className="mt-2 inline-block font-bold underline">Return to cart</Link>
+                </div>
+              )}
               {errorMessage && <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{errorMessage}</p>}
             </div>
 
@@ -295,12 +310,13 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
               </div>
               <div className="max-h-72 space-y-4 overflow-auto p-5 sm:p-6">
                 {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3">
+                  <div key={getCartLineId(item.id, item.variantId ?? null)} className="flex items-center gap-3">
                     <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
                       <Image src={getProductImageUrl(item.main_image)} alt={item.name} fill sizes="56px" className="object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{item.name}</p>
+                      {item.selectedVariant && <p className="mt-0.5 truncate text-[10px] text-white/50">{getVariantLabel(item.selectedVariant)}</p>}
                       <p className="mt-1 text-xs text-white/45">Qty {item.quantity} · {formatDisplayCurrency(Number(item.price), currency)} each</p>
                     </div>
                     <span className="shrink-0 text-sm font-bold">{formatDisplayCurrency(Number(item.price) * item.quantity, currency)}</span>
@@ -325,7 +341,7 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
                 <p className="text-[10px] leading-4 text-white/40">USD is calculated using the store&apos;s illustrative rate. Shipping and fulfillment are not included.</p>
               </div>
               <div className="border-t border-white/10 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
-                <button type="submit" disabled={isPending || !items.length} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-500 px-5 py-4 font-bold text-white shadow-lg shadow-purple-950/40 transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0911] disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="submit" disabled={isPending || !items.length || items.some((item) => Boolean(item.availabilityError)) || reconciliation === 'refreshing'} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-500 px-5 py-4 font-bold text-white shadow-lg shadow-purple-950/40 transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0911] disabled:cursor-not-allowed disabled:opacity-60">
                   {isPending ? <LoaderCircle size={18} className="animate-spin" /> : <LockKeyhole size={17} />}
                   {isPending ? 'Opening secure checkout…' : 'Continue to payment'}
                 </button>

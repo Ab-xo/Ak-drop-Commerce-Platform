@@ -19,6 +19,7 @@ type OrderItem = {
   total_price: number;
   size: string | null;
   color: string | null;
+  variant_attributes: Record<string, string> | null;
 };
 
 type OrderDetails = {
@@ -69,7 +70,7 @@ export default async function OrderDetailsPage({
 
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_number, status, total_amount, subtotal_amount, delivery_fee_amount, total_is_final, currency, shipping_address, payment_method, payment_status, created_at, order_items(id, product_id, product_name, product_slug, product_image, product_sku, quantity, unit_price, total_price, size, color), payments(amount, currency, status)')
+    .select('id, order_number, status, total_amount, subtotal_amount, delivery_fee_amount, total_is_final, currency, shipping_address, payment_method, payment_status, created_at, order_items(id, product_id, product_name, product_slug, product_image, product_sku, quantity, unit_price, total_price, size, color, variant_attributes), payments(amount, currency, status)')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -203,7 +204,11 @@ export default async function OrderDetailsPage({
                         <h3 className="line-clamp-2 font-bold leading-snug">{item.product_name}</h3>
                       )}
                       {item.product_sku && <p className="mt-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">SKU {item.product_sku}</p>}
-                      {(item.size || item.color) && <p className="mt-2 text-xs text-muted-foreground">{[item.size && `Size ${item.size}`, item.color && `Color ${item.color}`].filter(Boolean).join(' · ')}</p>}
+                      {(item.size || item.color || Object.keys(item.variant_attributes ?? {}).length > 0) && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {[item.size && `Size ${item.size}`, item.color, ...Object.entries(item.variant_attributes ?? {}).map(([name, value]) => `${name}: ${value}`)].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
                       <p className="mt-2 text-xs text-muted-foreground">{formatDisplayCurrency(Number(item.unit_price), 'USD')} <span className="mx-1">×</span> {item.quantity}</p>
                     </div>
                     <p className="shrink-0 font-bold sm:text-right">{formatDisplayCurrency(Number(item.total_price), 'USD')}</p>

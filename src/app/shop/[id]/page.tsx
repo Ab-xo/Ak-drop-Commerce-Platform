@@ -22,6 +22,8 @@ import { getProductImageUrl } from "@/utils/imageUtils";
 import { Product } from "@/types";
 import { formatDisplayCurrency } from "@/lib/currency";
 import { useDisplayCurrency } from "@/store/currencyStore";
+import { getAvailableProductStock, getVariantLabel, getVariantPrice } from "@/lib/product-variants";
+import type { ProductVariant } from "@/types";
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -37,6 +39,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [isHovered, setIsHovered] = useState(false);
   const [zoomState, setZoomState] = useState({ productId: id, zoomed: false });
+  const [variantSelection, setVariantSelection] = useState<{ productId: string; variantId: string | null }>({
+    productId: id,
+    variantId: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +67,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   const currentProductState = productState.id === id ? productState : null;
   const product = currentProductState?.product ?? null;
+  const selectedVariant = product && variantSelection.productId === id
+    ? product.variants?.find((variant) => variant.id === variantSelection.variantId) ?? null
+    : null;
   const loading = !currentProductState || currentProductState.loading;
   const loadError = currentProductState?.error ?? false;
 
@@ -73,8 +82,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   };
 
   const handleAddToCart = () => {
-    if (product && product.stock > 0) {
-      addItem(product);
+    if (product && (!product.variants?.length || selectedVariant) && getAvailableProductStock(product) > 0) {
+      addItem(product, selectedVariant);
     }
   };
 
@@ -109,13 +118,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   const selectedImageIndex = gallerySelection.productId === id ? gallerySelection.index : 0;
   const isZoomed = zoomState.productId === id && zoomState.zoomed;
-  const images = [product.main_image, ...(product.images ?? [])]
+  const images = [product.main_image, selectedVariant?.image_url, ...(product.images ?? [])]
     .filter((image, index, allImages) =>
       typeof image === "string" && image.trim().length > 0 && allImages.indexOf(image) === index
     )
     .slice(0, 4);
   const selectedImage = images[selectedImageIndex] || product.main_image;
   const gallerySlots = Array.from({ length: 4 }, (_, index) => images[index] ?? null);
+  const selectedPrice = selectedVariant ? getVariantPrice(product.price, selectedVariant) : product.price;
 
   return (
     <div className="min-h-screen py-32">
@@ -217,11 +227,48 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <h1 className="mb-4 text-5xl font-black uppercase italic tracking-tighter md:text-7xl">
               {product.name}
             </h1>
-            <p className="mb-2 text-3xl font-black italic text-primary">{formatDisplayCurrency(product.price, currency)}</p>
+            <p className="mb-2 text-3xl font-black italic text-primary">{formatDisplayCurrency(selectedPrice, currency)}</p>
             <p className="mb-8 text-xs text-muted-foreground">Portfolio display conversion only. Checkout orders are recorded in ETB.</p>
             <p className="mb-12 text-lg font-medium leading-relaxed text-foreground/60">
               {product.description}
             </p>
+
+            {product.variants?.length ? (
+              <fieldset className="mb-10 space-y-3">
+                <legend className="text-sm font-bold">Choose an option</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {product.variants.map((variant: ProductVariant) => {
+                    const unavailable = variant.stock_quantity <= 0;
+                    const selected = selectedVariant?.id === variant.id;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        disabled={unavailable}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setVariantSelection({ productId: id, variantId: variant.id });
+                        const variantImages = [product.main_image, variant.image_url, ...(product.images ?? [])]
+                          .filter((image, imageIndex, allImages) =>
+                            typeof image === "string" && image.trim().length > 0 && allImages.indexOf(image) === imageIndex
+                          );
+                        setGallerySelection({
+                          productId: id,
+                          index: variant.image_url ? Math.max(variantImages.indexOf(variant.image_url), 0) : 0,
+                        });
+                        }}
+                        className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${selected ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/50"}`}
+                      >
+                        <span className="font-semibold">{getVariantLabel(variant)}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {unavailable ? "Sold out" : formatDisplayCurrency(getVariantPrice(product.price, variant), currency)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
 
             <div className="mb-12 space-y-6">
               <h2 className="text-[10px] font-black uppercase tracking-widest text-primary">
@@ -245,13 +292,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
             <div className="mb-12 flex flex-col gap-6 sm:flex-row">
               <button
-                disabled={product.stock <= 0}
+                disabled={getAvailableProductStock(product) <= 0 || (Boolean(product.variants?.length) && !selectedVariant)}
                 onClick={handleAddToCart}
                 className="btn-primary flex-grow py-5 text-base font-black italic tracking-widest disabled:opacity-50"
               >
                 <span className="flex items-center justify-center gap-3">
                   <ShoppingCart size={20} />
-                  {product.stock <= 0 ? "SOLD OUT" : "ADD TO BAG"}
+                  {getAvailableProductStock(product) <= 0
+                    ? "SOLD OUT"
+                    : product.variants?.length && !selectedVariant
+                      ? "SELECT AN OPTION"
+                      : "ADD TO BAG"}
                 </span>
               </button>
               <button aria-label="Save product" className="glass-morphism rounded-full px-8 py-5 hover:bg-foreground/10">

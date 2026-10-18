@@ -9,10 +9,14 @@ import { getProductImageUrl } from "@/utils/imageUtils";
 import { formatDisplayCurrency } from "@/lib/currency";
 import { useDisplayCurrency } from "@/store/currencyStore";
 import CurrencySwitcher from "@/components/ui/CurrencySwitcher";
+import { getAvailableProductStock, getCartLineId, getVariantLabel } from "@/lib/product-variants";
+import { useReconcileCart } from "@/hooks/useReconcileCart";
 
 const CartPage = () => {
     const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCartStore();
     const currency = useDisplayCurrency();
+    const reconciliation = useReconcileCart();
+    const hasUnavailableItems = items.some((item) => Boolean(item.availabilityError));
 
     if (items.length === 0) {
         return (
@@ -41,6 +45,21 @@ const CartPage = () => {
                 <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-12 uppercase italic">
                     Your <span className="text-primary italic">Cart</span>
                 </h1>
+                {reconciliation === 'refreshing' && (
+                    <p role="status" className="mb-6 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                        Checking current product options, prices, and availability…
+                    </p>
+                )}
+                {reconciliation === 'error' && (
+                    <p role="status" className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                        We couldn&apos;t refresh your cart right now. Checkout will verify current prices and stock before placing an order.
+                    </p>
+                )}
+                {hasUnavailableItems && (
+                    <p role="alert" className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        Remove or correct unavailable cart items before continuing to checkout.
+                    </p>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
                     {/* Cart Items */}
@@ -51,7 +70,7 @@ const CartPage = () => {
                                 initial={{ opacity: 0, y: 30 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.1, type: "spring", damping: 20 }}
-                                key={item.id}
+                                key={getCartLineId(item.id, item.variantId ?? null)}
                                 className="glass-card flex flex-col sm:flex-row items-center gap-8 p-8 group border border-border hover:border-primary/40 transition-colors duration-500"
                             >
                                 <div className="relative w-full sm:w-48 h-48 rounded-3xl overflow-hidden flex-shrink-0 bg-secondary border border-border">
@@ -72,6 +91,12 @@ const CartPage = () => {
                                         <p className="text-xs text-foreground/30 font-bold uppercase tracking-[0.3em]">
                                             {item.category?.name || "AK Drop product"}
                                         </p>
+                                        {item.selectedVariant && (
+                                            <p className="text-xs font-semibold text-muted-foreground">{getVariantLabel(item.selectedVariant)}</p>
+                                        )}
+                                        {item.availabilityError && (
+                                            <p role="alert" className="pt-1 text-xs font-semibold text-destructive">{item.availabilityError}</p>
+                                        )}
                                     </div>
                                     <p className="text-sm text-foreground/50 line-clamp-2 max-w-md font-medium leading-relaxed">
                                         {item.description}
@@ -80,21 +105,25 @@ const CartPage = () => {
                                     <div className="flex items-center justify-center sm:justify-start gap-6 pt-2">
                                         <div className="flex items-center bg-secondary border border-border rounded-2xl p-1">
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                aria-label={`Decrease quantity of ${item.name}`}
+                                                onClick={() => updateQuantity(getCartLineId(item.id, item.variantId ?? null), item.quantity - 1)}
                                                 className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-foreground/10 hover:text-primary transition-all active:scale-90"
                                             >
                                                 <Minus size={18} />
                                             </button>
                                             <span className="w-12 text-center font-black text-lg italic">{item.quantity}</span>
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                aria-label={`Increase quantity of ${item.name}`}
+                                                disabled={item.quantity >= (item.selectedVariant?.stock_quantity ?? getAvailableProductStock(item))}
+                                                onClick={() => updateQuantity(getCartLineId(item.id, item.variantId ?? null), item.quantity + 1)}
                                                 className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-foreground/10 hover:text-primary transition-all active:scale-90"
                                             >
                                                 <Plus size={18} />
                                             </button>
                                         </div>
                                         <button
-                                            onClick={() => removeItem(item.id)}
+                                            aria-label={`Remove ${item.name} from cart`}
+                                            onClick={() => removeItem(getCartLineId(item.id, item.variantId ?? null))}
                                             className="w-12 h-12 rounded-2xl bg-destructive/5 text-destructive/40 hover:bg-destructive hover:text-white flex items-center justify-center transition-all duration-300 hover:rotate-6 active:scale-90"
                                             title="Remove Item"
                                         >
@@ -149,7 +178,14 @@ const CartPage = () => {
                                         </div>
                                     </div>
 
-                                    <Link href="/checkout" className="block w-full rounded-2xl bg-primary py-6 transition-opacity hover:opacity-90">
+                                    <Link
+                                        aria-disabled={hasUnavailableItems || reconciliation === 'refreshing'}
+                                        onClick={(event) => {
+                                            if (hasUnavailableItems || reconciliation === 'refreshing') event.preventDefault();
+                                        }}
+                                        href="/checkout"
+                                        className={`block w-full rounded-2xl py-6 transition-opacity ${hasUnavailableItems || reconciliation === 'refreshing' ? "pointer-events-none bg-secondary text-muted-foreground" : "bg-primary hover:opacity-90"}`}
+                                    >
                                         <span className="flex items-center justify-center gap-3 font-black italic uppercase tracking-[0.2em] text-primary-foreground">
                                             Continue to checkout <ArrowRight size={20} />
                                         </span>

@@ -35,8 +35,8 @@ Supabase test credentials.
 | Catalog scope | Footwear products with category, arrival/release flags, stock, and product images | Home, shop, categories, and product detail backed by Supabase; schema supports broader category/product data | Keep the multi-category direction. Make the categories page and catalog use the same live Supabase categories. |
 | Home merchandising | Release and new-arrival product sections; promotional banners | Featured, new arrival, deals, category blocks, and hero | Preserve the stronger modern layout; ensure each merchandising block has intentional empty/error states and no placeholder claims. |
 | Search and browse | Shop search/category-like matching, min/max price filtering, eight-item pagination | Name search, category selection, price filter, sorting, six-item client-side pagination | Improve filter correctness and URL-state/shareability; move large-catalog filtering and pagination to the data query. |
-| Product details | Multiple shoe images, details, shoe size, quantity, related-product section | Product image gallery, description/features, stock, add-to-cart; no selected size/color or variant-specific stock | Phase 2 adds a real product-variant model and selection; only add items with valid available variants. |
-| Cart | Session-backed cart; item quantity and size; checkout summary | Persisted Zustand cart, server-validated order creation, and Stripe test Checkout | Reconcile stale products/prices and stock before order creation; add variant-aware cart lines when product options are implemented. |
+| Product details | Multiple shoe images, details, shoe size, quantity, related-product section | Product image gallery, description/features, available option selection, per-option price and stock | Keep options category-neutral and require a valid in-stock selection for configurable products. |
+| Cart | Session-backed cart; item quantity and size; checkout summary | Persisted, option-aware Zustand cart with current product/variant reconciliation | Server revalidates option price and stock; database inventory reservation is concurrency-safe. |
 | Checkout and payment | Shipping/contact form, order placement, PayPal payment attempt | Authenticated, server-validated Stripe test-mode Checkout; card payments and billing address; no live payment or carrier integration | Keep live commerce gated on provider, currency, and fulfillment requirements. |
 | Customer account | Login/signup, profile update, order list and order details | Supabase authentication, profile editor, account summary/tabs, order display | Retain; connect account orders to real order-item details and restore usable links to detail pages. Persist settings rather than showing local-only toggles. |
 | Admin and operations | Admin sign-in, product create/edit/delete and image edit, order list/status edit/delete, customer screens | Protected product editor with server-verified `app_metadata.role`, four-image create/edit workflow, and validated storage uploads; order/customer operations remain unimplemented | Extend the protected console to orders and customer support; keep all staff writes server-authorized. |
@@ -175,18 +175,32 @@ so those choices do not leak into product/cart UI.
 
 **Priority:** P1 — required for footwear sizing and reliable stock.
 
+**Implementation status:** Product detail now requires an available option
+when variants exist; option prices, stock, attributes, SKU, and optional images
+flow through the persisted cart, order RPC, Stripe line items, and immutable
+customer/admin order snapshots. The database RPC locks product and variant
+rows, reserves variant stock atomically, and restores it on failed/cancelled
+payment. Persisted carts refresh product and option data before checkout.
+Apply the updated `database/setup.sql` to Supabase and run staging contention,
+payment-failure, and no-variant checkout scenarios before marking the phase
+verified; variant authoring UI is not included.
+
 **Scope**
 
 - Connect the existing `product_variants` concept to product detail, cart, and
   checkout. Support relevant attributes (shoe size, apparel size, color, and
-  SKU) without imposing shoe sizes on every category.
+  SKU) without imposing shoe sizes on every category. Implemented across the
+  storefront, persisted cart, checkout contract, and order snapshots.
 - Define variant-specific price overrides, stock, active status, and optional
-  images only where the business needs them.
+  images only where the business needs them. The canonical setup supports
+  explicit price overrides, price adjustments, attributes, stock, and images.
 - Show available options; disable unavailable combinations; require a valid
-  selection before adding a variant-required product to cart.
+  selection before adding a variant-required product to cart. Implemented on
+  product detail and product cards.
 - Show inventory availability in the UI without exposing sensitive inventory
   details if business policy does not permit it.
-- Reconcile persisted carts when product/variant data has changed.
+- Reconcile persisted carts when product/variant data has changed. Cart and
+  checkout refresh current product/variant availability and price.
 
 **Acceptance criteria**
 

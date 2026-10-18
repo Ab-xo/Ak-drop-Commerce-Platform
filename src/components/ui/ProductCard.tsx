@@ -9,14 +9,20 @@ import { useCartStore } from "@/store/cartStore";
 import { formatDisplayCurrency } from "@/lib/currency";
 import { useDisplayCurrency } from "@/store/currencyStore";
 import { getProductImageUrl } from "@/utils/imageUtils";
+import { getAvailableProductStock, getVariantPrice } from "@/lib/product-variants";
 
 export default function ProductCard({ product }: { product: Product }) {
   const addItem = useCartStore((state) => state.addItem);
   const currency = useDisplayCurrency();
-  const outOfStock = product.stock <= 0;
-  const hasDiscount = Boolean(product.compare_price && product.compare_price > product.price);
+  const variants = product.variants ?? [];
+  const outOfStock = getAvailableProductStock(product) <= 0;
+  const needsVariant = variants.length > 0;
+  const displayPrice = needsVariant
+    ? Math.min(...variants.map((variant) => getVariantPrice(product.price, variant)))
+    : product.price;
+  const hasDiscount = Boolean(product.compare_price && product.compare_price > displayPrice);
   const discount = hasDiscount
-    ? Math.round(100 - (product.price / (product.compare_price ?? product.price)) * 100)
+    ? Math.round(100 - (displayPrice / (product.compare_price ?? displayPrice)) * 100)
     : 0;
 
   return (
@@ -100,7 +106,8 @@ export default function ProductCard({ product }: { product: Product }) {
             <div className="min-w-0">
               <p className="mb-0.5 text-[8px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Price</p>
               <span className="text-lg font-black leading-none tracking-tight text-primary sm:text-xl">
-                {formatDisplayCurrency(product.price, currency)}
+                {needsVariant && <span className="mr-1 text-[10px] font-semibold text-muted-foreground">From</span>}
+                {formatDisplayCurrency(displayPrice, currency)}
               </span>
             </div>
             {hasDiscount && product.compare_price && (
@@ -110,17 +117,28 @@ export default function ProductCard({ product }: { product: Product }) {
             )}
           </div>
 
-          <button
-            type="button"
-            disabled={outOfStock}
-            onClick={() => {
-              if (!outOfStock) addItem(product);
-            }}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-foreground/[0.045] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.15em] text-foreground transition duration-300 hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:bg-secondary/70 disabled:text-muted-foreground"
-          >
-            <ShoppingBag size={15} strokeWidth={2} />
-            {outOfStock ? "Currently unavailable" : "Add to bag"}
-          </button>
+          {needsVariant ? (
+            <Link
+              href={`/shop/${product.id}`}
+              aria-disabled={outOfStock}
+              className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-[0.15em] transition ${outOfStock ? "pointer-events-none bg-secondary/70 text-muted-foreground" : "bg-foreground/[0.045] text-foreground hover:bg-primary hover:text-primary-foreground"}`}
+            >
+              <ShoppingBag size={15} strokeWidth={2} />
+              {outOfStock ? "Currently unavailable" : "Choose options"}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={outOfStock}
+              onClick={() => {
+                if (!outOfStock) addItem(product);
+              }}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-foreground/[0.045] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.15em] text-foreground transition duration-300 hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:bg-secondary/70 disabled:text-muted-foreground"
+            >
+              <ShoppingBag size={15} strokeWidth={2} />
+              {outOfStock ? "Currently unavailable" : "Add to bag"}
+            </button>
+          )}
         </div>
       </div>
     </motion.article>
