@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Activity, Boxes, ExternalLink, LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
+import { Activity, Boxes, ExternalLink, LayoutDashboard, LogOut, PackageCheck, ShieldCheck, Users } from 'lucide-react';
 import { signOutAdmin } from '@/app/admin/actions';
 
 export default function AdminWorkspace({
@@ -10,12 +10,14 @@ export default function AdminWorkspace({
 }: {
   children: ReactNode;
   email: string;
-  activePage: 'overview' | 'products';
+  activePage: 'overview' | 'products' | 'orders' | 'customers';
 }) {
   const initials = email.split('@')[0]?.slice(0, 2).toUpperCase() || 'AK';
   const navigation = [
     { href: '/admin', label: 'Overview', icon: LayoutDashboard, active: activePage === 'overview' },
     { href: '/admin/products', label: 'Products', icon: Boxes, active: activePage === 'products' },
+    { href: '/admin/orders', label: 'Orders', icon: PackageCheck, active: activePage === 'orders' },
+    { href: '/admin/customers', label: 'Customers', icon: Users, active: activePage === 'customers' },
   ];
 
   return (

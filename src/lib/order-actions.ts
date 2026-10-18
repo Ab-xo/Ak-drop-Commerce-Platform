@@ -261,6 +261,95 @@ export async function placeOrder(input: unknown) {
     return { error: 'We could not start secure payment. Please try again.' };
   }
 
+  const productIds = validated.data.items.map((item) => item.productId);
+  const { data: orderProducts, error: orderProductsError } = await admin
+    .from('products')
+    .select('id, name, price')
+    .in('id', productIds)
+    .eq('is_active', true);
+
+  if (orderProductsError || !orderProducts || orderProducts.length !== productIds.length) {
+    console.error('Unable to load the verified products for Stripe Checkout:', orderProductsError?.message ?? 'Product data is incomplete.');
+    const { error: cancelError } = await admin.rpc('cancel_unpaid_stripe_order', {
+      p_order_id: orderId,
+    });
+    if (cancelError) console.error('Unable to release inventory after product lookup failed:', cancelError.message);
+    return {
+      error: 'We could not load the verified order details for payment. Please retry checkout.',
+      resetIdempotency: true as const,
+    };
+  }
+
+  const stripeLineItems = validated.data.items.map((item) => {
+    const product = orderProducts.find((candidate) => candidate.id === item.productId);
+    if (!product) return null;
+    const unitPriceEtb = Math.round(Number(product.price) * 100);
+    return {
+      productId: product.id,
+      name: product.name,
+      quantity: item.quantity,
+      unitPriceEtb,
+      exactUsdCents: (unitPriceEtb * item.quantity) / ETB_PER_DISPLAY_UNIT.USD,
+    };
+  });
+
+  if (stripeLineItems.some((item) => !item || !Number.isFinite(item.exactUsdCents))) {
+    console.error('Verified Stripe Checkout product data contains an invalid price.');
+    const { error: cancelError } = await admin.rpc('cancel_unpaid_stripe_order', {
+      p_order_id: orderId,
+    });
+    if (cancelError) console.error('Unable to release inventory after product price validation failed:', cancelError.message);
+    return {
+      error: 'We could not verify the product prices for payment. Please retry checkout.',
+      resetIdempotency: true as const,
+    };
+  }
+
+  const pricedLineItems = stripeLineItems.filter((item) => item !== null);
+  const orderSubtotalEtbMinor = Math.round(subtotalEtb * 100);
+  const productsSubtotalEtbMinor = pricedLineItems.reduce(
+    (sum, item) => sum + item.unitPriceEtb * item.quantity,
+    0,
+  );
+
+  if (productsSubtotalEtbMinor !== orderSubtotalEtbMinor) {
+    console.error('Verified Stripe Checkout product total does not match the reserved order subtotal.');
+    const { error: cancelError } = await admin.rpc('cancel_unpaid_stripe_order', {
+      p_order_id: orderId,
+    });
+    if (cancelError) console.error('Unable to release inventory after order total mismatch:', cancelError.message);
+    return {
+      error: 'The order total changed while checkout was starting. Please refresh your cart and try again.',
+      resetIdempotency: true as const,
+    };
+  }
+
+  const stripeAmountsCents = pricedLineItems.map((item) => Math.floor(item.exactUsdCents));
+  let roundingCents = amountUsdCents - stripeAmountsCents.reduce((sum, amount) => sum + amount, 0);
+  const roundingOrder = pricedLineItems
+    .map((item, index) => ({ index, remainder: item.exactUsdCents - stripeAmountsCents[index] }))
+    .sort((left, right) => right.remainder - left.remainder);
+
+  for (let index = 0; roundingCents > 0; index += 1, roundingCents -= 1) {
+    const target = roundingOrder[index % roundingOrder.length];
+    stripeAmountsCents[target.index] += 1;
+  }
+
+  if (
+    stripeAmountsCents.some((amount) => amount < 1) ||
+    stripeAmountsCents.reduce((sum, amount) => sum + amount, 0) !== amountUsdCents
+  ) {
+    console.error('Unable to allocate the Stripe currency rounding across order items.');
+    const { error: cancelError } = await admin.rpc('cancel_unpaid_stripe_order', {
+      p_order_id: orderId,
+    });
+    if (cancelError) console.error('Unable to release inventory after Stripe amount allocation failed:', cancelError.message);
+    return {
+      error: 'We could not calculate the payment total safely. Please retry checkout.',
+      resetIdempotency: true as const,
+    };
+  }
+
   let session: Stripe.Checkout.Session;
   try {
     session = await stripe.checkout.sessions.create({
@@ -269,17 +358,34 @@ export async function placeOrder(input: unknown) {
       billing_address_collection: 'required',
       customer_email: validated.data.address.email,
       client_reference_id: user.id,
-      line_items: [{
+      branding_settings: {
+        background_color: '#0B0911',
+        button_color: '#7C3AED',
+        border_style: 'rounded',
+        display_name: 'AK Drop Commerce Platform',
+        font_family: 'inter',
+        icon: {
+          type: 'url',
+          url: `${siteUrl}/Minimalist%20Purple%20AK%20App%20Icon.png`,
+        },
+      },
+      line_items: pricedLineItems.map((item, index) => ({
         price_data: {
           currency: 'usd',
-          unit_amount: amountUsdCents,
+          unit_amount: stripeAmountsCents[index],
           product_data: {
-            name: `AK Drop order ${orderNumber}`,
-            description: 'Product subtotal only. Delivery is not included.',
+            name: `${item.name} · Qty ${item.quantity}`,
+            description: `AK Drop order ${orderNumber}. Product subtotal only; delivery is not included.`,
           },
         },
         quantity: 1,
-      }],
+      })),
+      submit_type: 'pay',
+      custom_text: {
+        submit: {
+          message: 'AK Drop Commerce Platform · Stripe test-mode payment. Product subtotal only; delivery and fulfillment are not included.',
+        },
+      },
       metadata: { orderId, userId: user.id },
       payment_intent_data: { metadata: { orderId, userId: user.id } },
       success_url: `${siteUrl}/api/stripe/return?session_id={CHECKOUT_SESSION_ID}`,

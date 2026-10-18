@@ -124,6 +124,26 @@ Never expose either secret through a `NEXT_PUBLIC_` variable or commit them.
 Optionally set `NEXT_PUBLIC_SUPPORT_EMAIL` to a real contact address for your
 deployment. The contact form remains disabled when no support email is set.
 
+### Supabase password recovery email
+
+Password recovery uses Supabase Auth's `resetPasswordForEmail`; the app does
+not send email directly or store SMTP credentials. In Supabase Dashboard,
+configure **Authentication → SMTP Settings** with a verified sender and your
+email provider's SMTP host, port, username, and password. Supabase's default
+email service is intended for testing and may restrict delivery to project
+team addresses or enforce low send limits.
+
+Under **Authentication → URL Configuration**, set the Site URL to the deployed
+site and add each recovery URL to the Redirect URLs allowlist:
+
+- Local development: `http://localhost:3000/auth/update-password`
+- Production: `https://your-domain.example/auth/update-password`
+
+Set `NEXT_PUBLIC_SITE_URL` to the matching origin in local `.env.local` and
+Vercel. The app appends `/auth/update-password` and accepts only the known
+sign-in return paths. Check Supabase Auth logs and the SMTP provider's delivery
+logs when a reset request succeeds but no email arrives.
+
 ### 4. Set up the database
 
 Run [`database/setup.sql`](./database/setup.sql) in the Supabase SQL Editor.

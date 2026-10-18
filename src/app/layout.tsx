@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   authors: [{ name: "AK Drop" }],
   robots: "index, follow",
   icons: {
-    icon: [{ url: "/ak-drop-icon.svg", type: "image/svg+xml" }],
-    shortcut: "/ak-drop-icon.svg",
+    icon: "/Minimalist%20Purple%20AK%20App%20Icon.png",
+    shortcut: "/Minimalist%20Purple%20AK%20App%20Icon.png",
   },
 };
 

@@ -79,6 +79,15 @@ export default function AdminLoginForm() {
                 </span>
               </label>
 
+              <div className="flex justify-end">
+                <Link
+                  href="/auth/forgot-password?next=/admin/login"
+                  className="text-sm font-semibold text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
               {state.error && (
                 <p role="alert" className="rounded-xl border border-destructive/25 bg-destructive/[0.08] px-3.5 py-3 text-sm text-destructive">
                   {state.error}

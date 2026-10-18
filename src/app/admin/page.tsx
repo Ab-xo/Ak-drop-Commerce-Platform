@@ -162,7 +162,11 @@ export default async function AdminDashboardPage() {
                   <tbody className="divide-y divide-border">
                     {allOrders.map((order) => (
                       <tr key={order.id} className="transition-colors hover:bg-secondary/30">
-                        <td className="px-5 py-4 font-bold sm:px-6">#{order.order_number}</td>
+                        <td className="px-5 py-4 font-bold sm:px-6">
+                          <Link href={`/admin/orders/${order.id}`} className="transition hover:text-primary">
+                            #{order.order_number}
+                          </Link>
+                        </td>
                         <td className="px-4 py-4 text-xs text-muted-foreground">
                           {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>

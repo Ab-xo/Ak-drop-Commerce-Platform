@@ -183,8 +183,8 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
             <Link className="mt-6 inline-flex rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground" href="/shop">Browse products</Link>
           </section>
         ) : (
-          <form onSubmit={handleSubmit} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_370px]">
-            <div className="space-y-5">
+          <form onSubmit={handleSubmit} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="space-y-5 lg:col-start-2 lg:row-start-1">
               <section className="rounded-3xl border border-border/80 bg-card/90 p-5 shadow-sm shadow-black/[0.025] backdrop-blur sm:p-7">
                 <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div className="flex items-center gap-3">
@@ -257,51 +257,79 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
               {errorMessage && <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{errorMessage}</p>}
             </div>
 
-            <aside className="h-fit overflow-hidden rounded-3xl border border-border/80 bg-card shadow-lg shadow-black/[0.04] lg:sticky lg:top-28">
-              <div className="border-b border-border bg-gradient-to-br from-secondary/50 to-transparent p-5 sm:p-6">
+            <aside aria-label="Order and payment details" className="h-fit overflow-hidden rounded-3xl border border-white/10 bg-[#0b0911] text-white shadow-2xl shadow-black/20 lg:sticky lg:top-28 lg:col-start-1 lg:row-start-1">
+              <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-[#171020] via-[#100d17] to-[#0b0911] p-5 sm:p-6">
+                <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-purple-600/20 blur-3xl" />
+                <div className="relative">
+                <div className="mb-5 flex items-center gap-3">
+                  <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-400 to-violet-700 text-sm font-black tracking-tight text-white shadow-lg shadow-purple-950/50">AK</span>
+                  <div>
+                    <p className="text-xs font-black tracking-[0.16em]">AK DROP</p>
+                    <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">Commerce Platform</p>
+                  </div>
+                  <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/[0.08] px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
+                    <LockKeyhole size={11} /> Secure
+                  </span>
+                </div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Your bag</p>
-                    <h2 className="mt-1 text-lg font-bold">Order summary</h2>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-purple-300">Order details</p>
+                    <h2 className="mt-1 text-lg font-bold">Your order</h2>
                   </div>
-                  <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">{items.reduce((sum, item) => sum + item.quantity, 0)} items</span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-white/60">{items.reduce((sum, item) => sum + item.quantity, 0)} items</span>
                 </div>
-                <div className="mt-4"><CurrencySwitcher /></div>
+                <div className="mt-5 rounded-2xl border border-purple-300/15 bg-gradient-to-br from-purple-500/[0.13] to-white/[0.03] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Amount due</p>
+                    <span className="rounded-md border border-amber-300/20 bg-amber-300/[0.08] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-200">Test mode</span>
+                  </div>
+                  <p className="mt-2 text-3xl font-black tracking-tight tabular-nums">{formatDisplayCurrency(subtotal, 'USD')}</p>
+                  <p className="mt-1 text-[11px] text-white/50">Charged securely by Stripe · USD</p>
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-3 text-xs">
+                    <span className="text-white/50">Order total in ETB</span>
+                    <span className="font-semibold text-white/90">{formatEtb(subtotal)}</span>
+                  </div>
+                </div>
+                <div className="mt-4"><CurrencySwitcher appearance="dark" /></div>
+                </div>
               </div>
               <div className="max-h-72 space-y-4 overflow-auto p-5 sm:p-6">
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
-                    <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border bg-secondary/50">
+                    <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
                       <Image src={getProductImageUrl(item.main_image)} alt={item.name} fill sizes="56px" className="object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{item.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Qty {item.quantity} · {formatDisplayCurrency(Number(item.price), currency)} each</p>
+                      <p className="mt-1 text-xs text-white/45">Qty {item.quantity} · {formatDisplayCurrency(Number(item.price), currency)} each</p>
                     </div>
                     <span className="shrink-0 text-sm font-bold">{formatDisplayCurrency(Number(item.price) * item.quantity, currency)}</span>
                   </div>
                 ))}
               </div>
-              <div className="space-y-3 border-t border-border px-5 py-5 text-sm sm:px-6">
-                <div className="flex justify-between"><span className="text-muted-foreground">Product subtotal</span><span className="font-semibold">{formatDisplayCurrency(subtotal, currency)}</span></div>
-                <div className="flex items-center justify-between"><span className="inline-flex items-center gap-1.5 text-muted-foreground"><Truck size={14} /> Delivery</span><span className="text-xs font-medium text-muted-foreground">Not configured</span></div>
-                <div className="rounded-2xl border border-primary/20 bg-primary/[0.06] p-4">
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Due on Stripe</p>
-                      <p className="mt-1 text-xl font-black tracking-tight">{formatDisplayCurrency(subtotal, 'USD')}</p>
-                    </div>
-                    <span className="pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Test charge</span>
+              <div className="space-y-3 border-t border-white/10 px-5 py-5 text-sm sm:px-6">
+                <div className="flex justify-between"><span className="text-white/50">Product subtotal</span><span className="font-semibold">{formatDisplayCurrency(subtotal, currency)}</span></div>
+                <div className="flex items-center justify-between"><span className="inline-flex items-center gap-1.5 text-white/50"><Truck size={14} /> Delivery</span><span className="text-xs font-medium text-white/40">Not configured</span></div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-white/85">Card payment</p>
+                    <span className="text-[10px] font-medium text-white/40">Powered by Stripe</span>
                   </div>
-                  <p className="mt-2 border-t border-primary/10 pt-2 text-[11px] leading-5 text-muted-foreground">Order value: {formatEtb(subtotal)} · illustrative conversion to USD. Delivery not included.</p>
+                  <div className="mt-3 flex items-center gap-2" aria-label="Visa and Mastercard accepted">
+                    <span className="rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[9px] font-black italic tracking-wide text-white/75">VISA</span>
+                    <span className="rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[9px] font-black tracking-wide text-white/75">mastercard</span>
+                    <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-emerald-300"><ShieldCheck size={12} /> Secure</span>
+                  </div>
+                  <p className="mt-3 text-[10px] leading-4 text-white/40">Card details are entered on Stripe&apos;s encrypted checkout and are never stored by AK Drop.</p>
                 </div>
+                <p className="text-[10px] leading-4 text-white/40">USD is calculated using the store&apos;s illustrative rate. Shipping and fulfillment are not included.</p>
               </div>
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-                <button type="submit" disabled={isPending || !items.length} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
+              <div className="border-t border-white/10 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
+                <button type="submit" disabled={isPending || !items.length} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-500 px-5 py-4 font-bold text-white shadow-lg shadow-purple-950/40 transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0911] disabled:cursor-not-allowed disabled:opacity-60">
                   {isPending ? <LoaderCircle size={18} className="animate-spin" /> : <LockKeyhole size={17} />}
                   {isPending ? 'Opening secure checkout…' : 'Continue to payment'}
                 </button>
-                <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground"><ShieldCheck size={13} className="text-emerald-500" />Secure checkout powered by Stripe</p>
+                <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-white/45"><ShieldCheck size={13} className="text-emerald-300" />Secure checkout by Stripe · test mode</p>
               </div>
             </aside>
           </form>

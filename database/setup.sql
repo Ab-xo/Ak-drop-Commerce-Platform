@@ -159,6 +159,98 @@ CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at);
 
+CREATE TABLE IF NOT EXISTS public.order_status_history (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    actor_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    previous_status TEXT NOT NULL,
+    new_status TEXT NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_status_history_order_created
+    ON public.order_status_history(order_id, created_at DESC);
+
+ALTER TABLE public.order_status_history ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.order_status_history FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public.order_status_history TO service_role;
+
+CREATE OR REPLACE FUNCTION public.admin_transition_order_status(
+    p_order_id UUID,
+    p_actor_user_id UUID,
+    p_expected_status TEXT,
+    p_new_status TEXT,
+    p_reason TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_order RECORD;
+    v_reason TEXT := NULLIF(BTRIM(p_reason), '');
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM auth.users
+        WHERE id = p_actor_user_id
+          AND raw_app_meta_data->>'role' = 'admin'
+    ) THEN
+        RAISE EXCEPTION USING MESSAGE = 'ADMIN_REQUIRED', ERRCODE = '42501';
+    END IF;
+
+    IF p_order_id IS NULL
+       OR p_actor_user_id IS NULL
+       OR p_expected_status IS NULL
+       OR p_new_status IS NULL
+       OR p_new_status NOT IN ('shipped', 'delivered')
+       OR (v_reason IS NOT NULL AND LENGTH(v_reason) > 500) THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_TRANSITION', ERRCODE = '22023';
+    END IF;
+
+    SELECT id, status, payment_status
+    INTO v_order
+    FROM public.orders
+    WHERE id = p_order_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_NOT_FOUND', ERRCODE = 'P0002';
+    END IF;
+    IF v_order.status IS DISTINCT FROM p_expected_status THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_STATUS_CHANGED', ERRCODE = '40001';
+    END IF;
+    IF v_order.payment_status IS DISTINCT FROM 'paid'
+       OR NOT COALESCE(
+           (v_order.status = 'processing' AND p_new_status = 'shipped')
+           OR (v_order.status = 'shipped' AND p_new_status = 'delivered'),
+           FALSE
+       ) THEN
+        RAISE EXCEPTION USING MESSAGE = 'ORDER_INVALID_TRANSITION', ERRCODE = '22023';
+    END IF;
+
+    UPDATE public.orders
+    SET status = p_new_status, updated_at = NOW()
+    WHERE id = p_order_id;
+
+    INSERT INTO public.order_status_history (
+        order_id, actor_user_id, previous_status, new_status, reason
+    )
+    VALUES (
+        p_order_id, p_actor_user_id, v_order.status, p_new_status, v_reason
+    );
+
+    RETURN TRUE;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_transition_order_status(UUID, UUID, TEXT, TEXT, TEXT)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_transition_order_status(UUID, UUID, TEXT, TEXT, TEXT)
+    TO service_role;
+
 -- Create trigger for orders updated_at
 DROP TRIGGER IF EXISTS update_orders_updated_at ON public.orders;
 CREATE TRIGGER update_orders_updated_at

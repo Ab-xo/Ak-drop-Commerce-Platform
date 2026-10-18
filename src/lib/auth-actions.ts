@@ -40,9 +40,35 @@ export async function signIn(formData: FormData) {
 export async function requestPasswordReset(formData: FormData) {
   const validatedFields = resetSchema.safeParse({ email: String(formData.get("email") ?? "") });
   if (!validatedFields.success) return { error: validatedFields.error.issues[0].message };
+  const next = formData.get("next") === "/admin/login" ? "/admin/login" : "/auth/signin";
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!configuredSiteUrl && process.env.NODE_ENV === "production") {
+    return { error: "Password recovery is not configured. Set NEXT_PUBLIC_SITE_URL to this deployment's URL." };
+  }
+
+  let siteUrl: URL;
+  try {
+    siteUrl = new URL(configuredSiteUrl || "http://localhost:3000");
+  } catch {
+    return { error: "Password recovery is not configured with a valid site URL." };
+  }
+
+  if (siteUrl.protocol !== "https:" && siteUrl.hostname !== "localhost") {
+    return { error: "Password recovery requires an HTTPS site URL outside localhost." };
+  }
+
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(validatedFields.data.email, { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/update-password` });
-  if (error) return { error: "Unable to send a reset email. Please try again." };
+  const redirectTo = new URL("/auth/update-password", siteUrl);
+  redirectTo.searchParams.set("next", next);
+  const { error } = await supabase.auth.resetPasswordForEmail(validatedFields.data.email, { redirectTo: redirectTo.toString() });
+  if (error) {
+    console.error("Password reset email request failed:", {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+    });
+    return { error: "Supabase could not request the reset email. Check the Auth email provider and allowed redirect URLs in Supabase, then try again." };
+  }
   return { success: true };
 }
 

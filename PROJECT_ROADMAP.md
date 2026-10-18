@@ -200,19 +200,30 @@ so those choices do not leak into product/cart UI.
 
 **Priority:** P1 — required to operate a live store.
 
+**Implementation status:** The protected admin now includes a paginated order
+queue with order-number/status filters, order detail and payment/address
+snapshots, a paginated customer directory with email lookup, and audited
+forward-only fulfillment updates for paid orders. Payment/refund state changes
+remain provider-controlled. Product variants, category management, archive
+workflows, richer catalog facets, and expanded order exception handling remain
+to be implemented; this phase is not complete.
+
 **Scope**
 
 - Add `/admin` login/authorization using a server-verified staff role and
-  deny-by-default route/data access. The `/admin/products` editor is now
-  implemented and requires `app_metadata.role = 'admin'`; staff order and
-  customer operations remain future work.
+  deny-by-default route/data access. The `/admin/products` editor and initial
+  order/customer operations require `app_metadata.role = 'admin'`; expanded
+  catalog and order exception workflows remain future work.
 - Add searchable, paginated product and category management: create, edit,
   deactivate/archive, assign categories, manage prices/compare-at prices,
   features/tags, SEO fields, product images, and variants/stock.
 - Manage four product gallery images with preview/reordering and validated
   Supabase Storage uploads; clean up replaced assets as a follow-up.
 - Add order queue and order detail with customer delivery data, item snapshots,
-  payment status, fulfillment state, and a status-change audit trail.
+  payment status, fulfillment state, and a status-change audit trail. The
+  initial queue/detail and forward fulfillment audit flow are implemented;
+  cancellation/refund and exception workflows remain out of scope until they
+  can safely coordinate payment-provider and inventory state.
 - Enforce valid transitions and require a reason for cancellation/refund or
   manual status overrides.
 - Add customer lookup with privacy-limited fields and auditable support access.

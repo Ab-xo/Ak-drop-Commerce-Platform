@@ -1,13 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-export default function UpdatePasswordPage() {
+function UpdatePasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnHref = searchParams.get('next') === '/admin/login' ? '/admin/login' : '/auth/signin';
+  const returnLabel = returnHref === '/admin/login' ? 'Back to admin sign in' : 'Back to sign in';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +34,7 @@ export default function UpdatePasswordPage() {
         return;
       }
       toast.success('Password updated successfully.');
-      router.replace('/auth/signin');
+      router.replace(returnHref);
     } catch {
       toast.error('Unable to update your password. Please request a new link.');
     } finally {
@@ -38,5 +42,9 @@ export default function UpdatePasswordPage() {
     }
   }
 
-  return <main className="min-h-screen flex items-center justify-center bg-background px-6 py-24"><div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden"><div className="h-1 bg-gradient-to-r from-primary via-purple-500 to-blue-500" /><div className="p-8"><h1 className="text-3xl font-black uppercase italic tracking-tight">New <span className="text-primary">password</span></h1><p className="mt-2 text-sm text-muted-foreground">Choose a strong password for your AK Drop account.</p><form onSubmit={handleSubmit} className="mt-8 space-y-5"><label className="block text-sm font-semibold" htmlFor="password">New password</label><input id="password" type="password" required minLength={10} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" /><label className="block text-sm font-semibold" htmlFor="confirmPassword">Confirm password</label><input id="confirmPassword" type="password" required minLength={10} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" /><p className="text-xs text-muted-foreground">Minimum 10 characters, including uppercase, lowercase, a number, and a special character.</p><button disabled={isLoading} className="w-full rounded-xl bg-primary px-4 py-3 font-black text-primary-foreground disabled:opacity-50">{isLoading ? 'Updating…' : 'Update password'}</button><Link href="/auth/signin" className="block text-center text-sm text-primary hover:underline">Back to sign in</Link></form></div></div></main>;
+  return <main className="min-h-screen flex items-center justify-center bg-background px-6 py-24"><div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden"><div className="h-1 bg-gradient-to-r from-primary via-purple-500 to-blue-500" /><div className="p-8"><h1 className="text-3xl font-black uppercase italic tracking-tight">New <span className="text-primary">password</span></h1><p className="mt-2 text-sm text-muted-foreground">Choose a strong password for your AK Drop account.</p><form onSubmit={handleSubmit} className="mt-8 space-y-5"><label className="block text-sm font-semibold" htmlFor="password">New password</label><input id="password" type="password" required minLength={10} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" /><label className="block text-sm font-semibold" htmlFor="confirmPassword">Confirm password</label><input id="confirmPassword" type="password" required minLength={10} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" /><p className="text-xs text-muted-foreground">Minimum 10 characters, including uppercase, lowercase, a number, and a special character.</p><button disabled={isLoading} className="w-full rounded-xl bg-primary px-4 py-3 font-black text-primary-foreground disabled:opacity-50">{isLoading ? 'Updating…' : 'Update password'}</button><Link href={returnHref} className="block text-center text-sm text-primary hover:underline">{returnLabel}</Link></form></div></div></main>;
+}
+
+export default function UpdatePasswordPage() {
+  return <Suspense fallback={<main className="min-h-screen bg-background" />}><UpdatePasswordForm /></Suspense>;
 }
