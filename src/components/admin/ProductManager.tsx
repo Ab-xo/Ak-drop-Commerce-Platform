@@ -2,8 +2,8 @@
 
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, PackagePlus, Save, Search, ShieldCheck, Upload, X } from 'lucide-react';
-import { saveProduct, uploadProductImage } from '@/app/admin/products/actions';
+import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, PackagePlus, Save, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import { deleteProduct, saveProduct, uploadProductImage } from '@/app/admin/products/actions';
 
 type CategoryOption = { id: string; name: string; slug: string };
 type ProductRecord = {
@@ -63,6 +63,8 @@ export default function ProductManager({
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const visibleProducts = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -78,6 +80,7 @@ export default function ProductManager({
   function selectProduct(product: ProductRecord | null) {
     setFields(fieldsFor(product, categories));
     setFeedback(null);
+    setDeleteConfirm(false);
   }
 
   function updateField<K extends keyof ProductFields>(key: K, value: ProductFields[K]) {
@@ -142,6 +145,28 @@ export default function ProductManager({
       setFeedback({ kind: 'error', text: 'Could not save the product. Please try again.' });
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!fields.id) return;
+    setIsDeleting(true);
+    setFeedback(null);
+    try {
+      const result = await deleteProduct(fields.id);
+      if (result.error) {
+        setFeedback({ kind: 'error', text: result.error });
+        setDeleteConfirm(false);
+        return;
+      }
+      setFeedback({ kind: 'success', text: 'Product deactivated and removed from the shop.' });
+      window.location.reload();
+    } catch (error) {
+      console.error('Product delete request failed:', error);
+      setFeedback({ kind: 'error', text: 'Could not delete the product. Please try again.' });
+      setDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -210,9 +235,47 @@ export default function ProductManager({
               <p className="mt-1 text-sm text-muted-foreground">Manage catalog details and its complete image gallery.</p>
             </div>
             {fields.id && (
-              <button type="button" onClick={() => selectProduct(null)} className="rounded-full p-2 text-muted-foreground transition hover:bg-secondary hover:text-foreground" aria-label="Create a new product">
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                {deleteConfirm ? (
+                  <>
+                    <span className="text-xs font-semibold text-destructive">Delete this product?</span>
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete()}
+                      disabled={isDeleting}
+                      className="inline-flex items-center gap-1 rounded-lg bg-destructive px-3 py-1.5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                    >
+                      {isDeleting ? <LoaderCircle size={13} className="animate-spin" /> : null}
+                      Yes, delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirm(false)}
+                      disabled={isDeleting}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition hover:bg-secondary disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(true)}
+                    className="rounded-full p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                    aria-label="Delete product"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => selectProduct(null)}
+                  className="rounded-full p-2 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                  aria-label="Create a new product"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             )}
           </header>
 

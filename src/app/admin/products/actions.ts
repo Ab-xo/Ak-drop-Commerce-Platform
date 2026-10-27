@@ -158,3 +158,29 @@ export async function saveProduct(formData: FormData) {
   revalidatePath(`/shop/${savedProduct.id}`);
   return { success: true };
 }
+
+export async function deleteProduct(productId: string) {
+  const adminUser = await getServerVerifiedAdmin();
+  if (!adminUser) return { error: 'Admin access is required to delete products.' };
+
+  const uuidSchema = z.string().uuid();
+  if (!uuidSchema.safeParse(productId).success) {
+    return { error: 'Invalid product ID.' };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('products')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', productId);
+
+  if (error) {
+    console.error('Admin product delete (soft) failed:', error.message);
+    return { error: 'Could not deactivate this product. Please try again.' };
+  }
+
+  revalidatePath('/admin/products');
+  revalidatePath('/shop');
+  revalidatePath(`/shop/${productId}`);
+  return { success: true };
+}
