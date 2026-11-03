@@ -5,7 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 
 const shopLinks = [
   { label: "All products",       href: "/shop" },
-  { label: "Shoes",              href: "/shop?category=shoes" },
+  { label: "Shoes",              href: "/shop?category=footwear" },
   { label: "Shirts & apparel",   href: "/shop?category=clothing" },
   { label: "Accessories",        href: "/shop?category=accessories" },
 ];

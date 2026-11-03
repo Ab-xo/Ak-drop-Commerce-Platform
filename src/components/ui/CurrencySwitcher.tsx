@@ -30,7 +30,7 @@ export default function CurrencySwitcher({ appearance = "default" }: Props) {
           const selected = DISPLAY_CURRENCIES.find((option) => option === event.target.value);
           if (selected) setCurrency(selected);
         }}
-        className={`min-w-16 cursor-pointer rounded-lg border px-3 py-2 text-sm font-bold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 ${isDark ? "border-white/10 bg-[#17131e] text-white" : "border-border bg-card text-foreground"}`}
+        className={`w-20 cursor-pointer rounded-lg border px-2.5 py-2 text-sm font-bold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 ${isDark ? "border-white/10 bg-[#17131e] text-white" : "border-border bg-card text-foreground"}`}
       >
         {DISPLAY_CURRENCIES.map((option) => (
           <option key={option} value={option} className={isDark ? "bg-[#17131e] text-white" : "bg-background text-foreground"}>

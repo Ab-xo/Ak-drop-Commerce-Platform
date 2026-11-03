@@ -158,6 +158,11 @@ snapshots and makes checkout reserve variant inventory atomically. Apply it to
 the connected Supabase project before testing variant checkout. Product-option
 authoring is not yet available in the admin UI.
 
+For an existing catalog that has duplicate Footwear categories, run
+[`database/merge-duplicate-footwear.sql`](./database/merge-duplicate-footwear.sql)
+in the SQL Editor. It moves products to the canonical `footwear` category
+before removing duplicate Footwear rows.
+
 [`database/create-product.sql`](./database/create-product.sql) updates the
 existing Urban Commuter Backpack (`AK-BG-001`) with four public gallery image
 URLs; it does not insert a duplicate. Run it in the Supabase SQL Editor to

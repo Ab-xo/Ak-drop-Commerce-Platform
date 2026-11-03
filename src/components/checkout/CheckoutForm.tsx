@@ -236,11 +236,53 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
                     <ShieldCheck size={14} className="text-emerald-500" /> Protected
                   </div>
                 </div>
+
+                {/* ── Stripe sandbox notice ── */}
+                <div className="mb-4 overflow-hidden rounded-2xl border border-amber-400/30 bg-amber-400/[0.06]">
+                  <div className="flex items-center gap-2.5 border-b border-amber-400/20 px-4 py-2.5">
+                    <span className="size-2 animate-pulse rounded-full bg-amber-400" />
+                    <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-amber-500 dark:text-amber-300">Stripe test mode active</span>
+                    <span className="ml-auto rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-500 dark:text-amber-300">sandbox</span>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-xs font-semibold text-foreground">Use a Stripe test card below — real cards will be declined.</p>
+                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Enter any future expiry date and any 3-digit CVC. Billing ZIP can be any 5 digits.</p>
+                    <div className="mt-3 space-y-2">
+                      {[
+                        { number: '4242 4242 4242 4242', label: 'Visa · succeeds', color: 'emerald' },
+                        { number: '5555 5555 5555 4444', label: 'Mastercard · succeeds', color: 'emerald' },
+                        { number: '4000 0025 0000 3155', label: 'Visa · 3D Secure auth', color: 'sky' },
+                        { number: '4000 0000 0000 9995', label: 'Visa · insufficient funds', color: 'rose' },
+                      ].map(({ number, label, color }) => (
+                        <div key={number} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${
+                          color === 'emerald' ? 'border-emerald-500/20 bg-emerald-500/[0.06]' :
+                          color === 'sky'     ? 'border-sky-500/20 bg-sky-500/[0.06]' :
+                                               'border-rose-500/20 bg-rose-500/[0.06]'
+                        }`}>
+                          <code className="font-mono text-sm font-bold tracking-wider text-foreground">{number}</code>
+                          <span className={`shrink-0 text-[11px] font-semibold ${
+                            color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+                            color === 'sky'     ? 'text-sky-600 dark:text-sky-400' :
+                                                 'text-rose-600 dark:text-rose-400'
+                          }`}>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[10px] text-muted-foreground">
+                      Full test card list →{' '}
+                      <a href="https://stripe.com/docs/testing#cards" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+                        stripe.com/docs/testing
+                      </a>
+                    </p>
+                  </div>
+                </div>
+
+                {/* ── Hosted Stripe info ── */}
                 <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-secondary/60 to-background p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="max-w-md">
                       <p className="text-sm font-bold">Card payment · hosted by Stripe</p>
-                      <p className="mt-1.5 text-xs leading-5 text-muted-foreground">Your card number and billing address are entered on Stripe&apos;s secure page—not stored by AK Drop.</p>
+                      <p className="mt-1.5 text-xs leading-5 text-muted-foreground">Your card number and billing address are entered on Stripe&apos;s secure page — never stored by AK Drop.</p>
                     </div>
                     <div className="flex items-center gap-1.5" aria-label="Card payments accepted through Stripe">
                       <span className="rounded-md border border-border bg-background px-2 py-1 text-[10px] font-black tracking-wide text-foreground/70">VISA</span>
@@ -248,13 +290,14 @@ export default function CheckoutForm({ initialAddress, paymentCancelled }: Props
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/70 pt-3 text-[11px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5"><LockKeyhole size={12} className="text-emerald-500" />Encrypted payment</span>
+                    <span className="inline-flex items-center gap-1.5"><LockKeyhole size={12} className="text-emerald-500" />TLS encrypted payment</span>
                     <span className="inline-flex items-center gap-1.5"><PackageCheck size={12} />Billing address collected by Stripe</span>
                   </div>
                 </div>
+
                 <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl p-1 text-sm leading-relaxed text-muted-foreground transition hover:text-foreground">
                   <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-1 size-4 shrink-0 accent-primary" />
-                  <span>I understand this is a Stripe test-mode payment in USD, and delivery costs and fulfillment are not included.</span>
+                  <span>I understand this is a Stripe <strong className="font-semibold text-foreground">test-mode</strong> payment in USD using a test card, and delivery costs and fulfillment are not included.</span>
                 </label>
               </section>
 

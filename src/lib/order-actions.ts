@@ -280,11 +280,47 @@ export async function placeOrder(input: unknown) {
     return { error: 'We could not start secure payment. Please try again.' };
   }
 
-  const { data: orderItems, error: orderItemsError } = await admin
+  // `variant_attributes` was added to order_items via ALTER TABLE (see database/setup.sql line ~401).
+  // If that migration hasn't run on the live DB, the SELECT will fail with a 42703 column-not-found
+  // error even though the order itself was created fine. Fall back to selecting without it.
+  type OrderItemRow = {
+    product_name: string;
+    product_sku: string | null;
+    quantity: number;
+    unit_price: number;
+    size: string | null;
+    color: string | null;
+    variant_attributes?: Record<string, unknown> | null;
+  };
+
+  const fullSelect = 'product_name, product_sku, quantity, unit_price, size, color, variant_attributes';
+  const fallbackSelect = 'product_name, product_sku, quantity, unit_price, size, color';
+
+  let rawOrderItems = await admin
     .from('order_items')
-    .select('product_name, product_sku, quantity, unit_price, size, color, variant_attributes')
+    .select(fullSelect)
     .eq('order_id', orderId)
     .order('created_at', { ascending: true });
+
+  if (
+    rawOrderItems.error &&
+    (rawOrderItems.error.code === '42703' ||
+      rawOrderItems.error.code === 'PGRST204' ||
+      rawOrderItems.error.message?.includes('variant_attributes'))
+  ) {
+    console.warn(
+      'order_items.variant_attributes column missing — retrying without it. ' +
+        'Apply the ALTER TABLE migration in database/setup.sql to fix this permanently.',
+    );
+    rawOrderItems = await admin
+      .from('order_items')
+      .select(fallbackSelect)
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: true }) as typeof rawOrderItems;
+  }
+
+  const orderItems = rawOrderItems.data as OrderItemRow[] | null;
+  const orderItemsError = rawOrderItems.error;
 
   if (orderItemsError || !orderItems?.length) {
     console.error('Unable to load the verified order item snapshots for Stripe Checkout:', orderItemsError?.message ?? 'Order items are missing.');
@@ -300,8 +336,9 @@ export async function placeOrder(input: unknown) {
 
   const stripeLineItems = orderItems.map((item) => {
     const unitPriceEtb = Math.round(Number(item.unit_price) * 100);
-    const attributes = item.variant_attributes && typeof item.variant_attributes === 'object'
-      ? Object.entries(item.variant_attributes)
+    const rawAttrs = item.variant_attributes;
+    const attributes = rawAttrs && typeof rawAttrs === 'object' && !Array.isArray(rawAttrs)
+      ? Object.entries(rawAttrs)
           .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
           .map(([name, value]) => `${name}: ${value}`)
       : [];
@@ -383,24 +420,13 @@ export async function placeOrder(input: unknown) {
       billing_address_collection: 'required',
       customer_email: validated.data.address.email,
       client_reference_id: user.id,
-      branding_settings: {
-        background_color: '#0B0911',
-        button_color: '#7C3AED',
-        border_style: 'rounded',
-        display_name: 'AK Drop Commerce Platform',
-        font_family: 'inter',
-        icon: {
-          type: 'url',
-          url: `${siteUrl}/Minimalist%20Purple%20AK%20App%20Icon.png`,
-        },
-      },
       line_items: pricedLineItems.map((item, index) => ({
         price_data: {
           currency: 'usd',
           unit_amount: stripeAmountsCents[index],
           product_data: {
-            name: `${item.name}${item.sku ? ` · ${item.sku}` : ''}${item.optionDescription ? ` · ${item.optionDescription}` : ''}`,
-            description: `AK Drop order ${orderNumber} · Qty ${item.quantity}. Product subtotal only; delivery is not included.`,
+            name: item.name + (item.optionDescription ? ` · ${item.optionDescription}` : ''),
+            description: item.sku ? `SKU: ${item.sku} · Qty ${item.quantity}` : `Qty ${item.quantity}`,
           },
         },
         quantity: 1,
@@ -408,7 +434,7 @@ export async function placeOrder(input: unknown) {
       submit_type: 'pay',
       custom_text: {
         submit: {
-          message: 'AK Drop Commerce Platform · Stripe test-mode payment. Product subtotal only; delivery and fulfillment are not included.',
+          message: 'AK Drop · Test mode. Use card 4242 4242 4242 4242, any future date, any CVC.',
         },
       },
       metadata: { orderId, userId: user.id },

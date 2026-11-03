@@ -1,349 +1,556 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ProductCard from "@/components/ui/ProductCard";
 import { Product, Category } from "@/types";
-import { Search, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight, ChevronDown, X } from "lucide-react";
-import { motion } from "framer-motion";
-import { getProducts, getCategories } from "@/utils/supabaseFetch";
-import { useSearchParams } from "next/navigation";
-import { formatDisplayCurrency } from "@/lib/currency";
+import {
+  Search, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight,
+  ChevronDown, X, SlidersHorizontal, Tag, Banknote,
+} from "lucide-react";
+import { getCategories, getProductPage } from "@/utils/supabaseFetch";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { formatDisplayCurrency, ETB_PER_DISPLAY_UNIT } from "@/lib/currency";
 import { useDisplayCurrency } from "@/store/currencyStore";
+import type { DisplayCurrency } from "@/lib/currency";
+import type { ProductSort } from "@/utils/supabaseFetch";
 import CurrencySwitcher from "@/components/ui/CurrencySwitcher";
 
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest drops" },
+  { value: "price-low", label: "Price: low → high" },
+  { value: "price-high", label: "Price: high → low" },
+];
+
+function isProductSort(value: string): value is ProductSort {
+  return SORT_OPTIONS.some((option) => option.value === value);
+}
+
+const CURRENCY_OPTIONS: { value: DisplayCurrency; label: string; symbol: string }[] = [
+  { value: "USD", label: "USD", symbol: "$" },
+  { value: "ETB", label: "ETB", symbol: "ETB" },
+  { value: "EUR", label: "EUR", symbol: "€" },
+  { value: "GBP", label: "GBP", symbol: "£" },
+  { value: "CAD", label: "CAD", symbol: "CA$" },
+];
+const ITEMS_PER_PAGE = 12;
+
+// Convert ETB price to display currency for range label
+function toDisplay(etbPrice: number, currency: DisplayCurrency): number {
+  const rate = ETB_PER_DISPLAY_UNIT[currency] ?? 1;
+  return etbPrice / rate;
+}
+
 const ShopPage = () => {
-    const currency = useDisplayCurrency();
-    const searchParams = useSearchParams();
-    const initialCategory = searchParams.get("category") || "all";
+  const currency = useDisplayCurrency();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const activeCategory = searchParams.get("category") || "all";
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [activeCategory, setActiveCategory] = useState(initialCategory);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
-    const [priceCeiling, setPriceCeiling] = useState(1000);
-    const [sortBy, setSortBy] = useState("newest");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState(false);
-    const itemsPerPage = 6;
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesError, setCategoriesError] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [priceCeiling, setPriceCeiling] = useState(10000);
+  const [maxPriceFilter, setMaxPriceFilter] = useState<number | null>(null);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [totalCount, setTotalCount] = useState(0);
+  const [sortBy, setSortBy] = useState<ProductSort>("newest");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string | null>(null);
+  const [failedRequestKey, setFailedRequestKey] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const itemsPerPage = ITEMS_PER_PAGE;
+  const effectiveMaxPrice =
+    maxPriceFilter !== null && maxPriceFilter < priceCeiling
+      ? maxPriceFilter
+      : undefined;
+  const requestKey = JSON.stringify([
+    activeCategory,
+    debouncedSearchQuery,
+    effectiveMaxPrice ?? null,
+    sortBy,
+    currentPage,
+  ]);
+  const loading = loadedRequestKey !== requestKey;
+  const loadError = failedRequestKey === requestKey;
 
-    useEffect(() => {
-        const requestedCategory = searchParams.get("category") || "all";
-        setActiveCategory(requestedCategory);
-    }, [searchParams]);
-
-    useEffect(() => {
-        async function initShop() {
-            try {
-                const cats = await getCategories();
-                setCategories(cats);
-            } catch (error) {
-                console.error("Failed to load categories:", error);
-                setLoadError(true);
-            }
-        }
-        initShop();
-    }, []);
-
-    useEffect(() => {
-        async function loadProducts() {
-            setLoading(true);
-            setLoadError(false);
-            try {
-                const data = await getProducts(activeCategory);
-                setProducts(data);
-                const maximumPrice = Math.max(
-                    1000,
-                    ...data.map((product) => Math.ceil(product.price / 50) * 50)
-                );
-                setPriceCeiling(maximumPrice);
-                setPriceRange([0, maximumPrice]);
-                setCurrentPage(1); // Reset to page 1 on filter change
-            } catch (error) {
-                console.error("Failed to load products:", error);
-                setLoadError(true);
-            } finally {
-                setLoading(false);
-            }
-        }
-        loadProducts();
-    }, [activeCategory]);
-
-    // Filtering & Sorting Logic
-    const processedProducts = products
-        .filter((p) => {
-            const normalizedSearch = searchQuery.trim().toLowerCase();
-            const matchesSearch = [
-                p.name,
-                p.description,
-                p.category?.name || "",
-            ].some((value) => value.toLowerCase().includes(normalizedSearch));
-            const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
-            return matchesSearch && matchesPrice;
-        })
-        .sort((a, b) => {
-            if (sortBy === "price-low") return a.price - b.price;
-            if (sortBy === "price-high") return b.price - a.price;
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-
-    // Pagination Logic
-    const totalPages = Math.ceil(processedProducts.length / itemsPerPage);
-    const visiblePageCount = Math.min(totalPages, 5);
-    const firstVisiblePage = Math.min(
-        Math.max(currentPage - 2, 1),
-        totalPages - visiblePageCount + 1
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedSearchQuery(searchQuery.trim()),
+      250,
     );
-    const visiblePages = Array.from(
-        { length: visiblePageCount },
-        (_, index) => firstVisiblePage + index
-    );
-    const paginatedProducts = processedProducts.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
-    return (
-        <div className="min-h-screen py-32">
-            <div className="container mx-auto px-4">
-                {/* Header */}
-                <div className="flex flex-col mb-12">
-                    <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-4 uppercase italic">
-                        PREMIUM <span className="text-primary italic">CATALOG</span>
-                    </h1>
-                    <p className="text-foreground/60 max-w-lg font-medium">
-                        Engineered for performance, designed for the streets.
-                    </p>
-                </div>
+  useEffect(() => {
+    getCategories()
+      .then((cats) => {
+        // deduplicate by slug in case DB has dupes
+        const seen = new Set<string>();
+        setCategories(cats.filter((c) => {
+          if (seen.has(c.slug)) return false;
+          seen.add(c.slug);
+          return true;
+        }));
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load product categories:", error);
+        setCategoriesError(true);
+      });
+  }, []);
 
-                <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
-                    {/* Sidebar Filters */}
-                    <aside className="w-full space-y-7 lg:sticky lg:top-28 lg:w-72 lg:shrink-0 lg:self-start">
-                        {/* Search & Sort */}
-                        <div className="space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-                            <div className="relative">
-                                <Search aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                                <input
-                                    aria-label="Search products"
-                                    type="text"
-                                    placeholder="Search products..."
-                                    className="h-12 w-full rounded-xl border border-input bg-background pl-11 pr-10 text-sm font-medium text-foreground placeholder:text-muted-foreground/70 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-                                    value={searchQuery}
-                                    onChange={(e) => {
-                                        setSearchQuery(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                />
-                                {searchQuery && (
-                                    <button
-                                        type="button"
-                                        aria-label="Clear search"
-                                        onClick={() => {
-                                            setSearchQuery("");
-                                            setCurrentPage(1);
-                                        }}
-                                        className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
-                                    >
-                                        <X size={15} />
-                                    </button>
-                                )}
-                            </div>
+  useEffect(() => {
+    let isCurrent = true;
+    getProductPage({
+      categorySlug: activeCategory === "all" ? undefined : activeCategory,
+      search: debouncedSearchQuery,
+      maximumPrice: effectiveMaxPrice,
+      sortBy,
+      page: currentPage,
+      pageSize: itemsPerPage,
+    })
+      .then((result) => {
+        if (!isCurrent) return;
+        setProducts(result.products);
+        setTotalCount(result.totalCount);
+        const max = Math.max(1000, Math.ceil(result.maxPrice / 100) * 100);
+        setPriceCeiling(max);
+        setMaxPriceFilter((current) =>
+          current !== null && current < max ? current : null,
+        );
+        setFailedRequestKey(null);
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load shop products:", error);
+        if (isCurrent) setFailedRequestKey(requestKey);
+      })
+      .finally(() => {
+        if (isCurrent) setLoadedRequestKey(requestKey);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [
+    activeCategory,
+    debouncedSearchQuery,
+    effectiveMaxPrice,
+    sortBy,
+    currentPage,
+    itemsPerPage,
+    requestKey,
+  ]);
 
-                            <div className="space-y-2">
-                                <label htmlFor="shop-sort" className="block px-1 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Sort by</label>
-                                <div className="relative">
-                                    <select
-                                        id="shop-sort"
-                                        className="h-12 w-full appearance-none rounded-xl border border-input bg-background px-4 pr-11 text-sm font-semibold text-foreground outline-none transition hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 [color-scheme:light] dark:[color-scheme:dark]"
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                    >
-                                        <option className="bg-background text-foreground" value="newest">Newest drops</option>
-                                        <option className="bg-background text-foreground" value="price-low">Price: low to high</option>
-                                        <option className="bg-background text-foreground" value="price-high">Price: high to low</option>
-                                    </select>
-                                    <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                </div>
-                            </div>
-                            <CurrencySwitcher />
-                        </div>
+  const handleCategorySelect = useCallback((slug: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (slug === "all") params.delete("category");
+    else params.set("category", slug);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    setCurrentPage(1);
+    setMaxPriceFilter(null);
+    setSidebarOpen(false);
+  }, [
+    pathname,
+    router,
+    searchParams,
+    setCurrentPage,
+    setMaxPriceFilter,
+    setSidebarOpen,
+  ]);
 
-                        {/* Category Filter */}
-                        <div className="space-y-3 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-                            <label className="block px-1 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Categories</label>
-                            <div className="flex flex-col gap-1.5">
-                                <button
-                                    onClick={() => setActiveCategory("all")}
-                                    className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeCategory === "all" ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20" : "text-foreground/70 hover:bg-secondary hover:text-foreground"
-                                        }`}
-                                >
-                                    All Collections
-                                </button>
-                                {categories.map((cat) => (
-                                    <button
-                                        key={cat.id}
-                                        onClick={() => setActiveCategory(cat.slug)}
-                                        className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeCategory === cat.slug ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20" : "text-foreground/70 hover:bg-secondary hover:text-foreground"
-                                            }`}
-                                    >
-                                        {cat.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const visiblePageCount = Math.min(totalPages, 5);
+  const firstVisiblePage = Math.min(
+    Math.max(currentPage - 2, 1),
+    Math.max(totalPages - visiblePageCount + 1, 1)
+  );
+  const visiblePages = Array.from({ length: visiblePageCount }, (_, i) => firstVisiblePage + i);
+  const paginatedProducts = products;
 
-                        {/* Price Filter */}
-                        <div className="space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-                            <div className="flex items-center justify-between gap-3">
-                                <label htmlFor="shop-price-range" className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Price range</label>
-                                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{formatDisplayCurrency(priceRange[1], currency)}</span>
-                            </div>
-                            <div className="px-1">
-                                <input
-                                    id="shop-price-range"
-                                    type="range"
-                                    min="0"
-                                    max={priceCeiling}
-                                    step="50"
-                                    className="mb-3 h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-secondary accent-primary"
-                                    value={priceRange[1]}
-                                    onChange={(e) => {
-                                        setPriceRange([0, parseInt(e.target.value)]);
-                                        setCurrentPage(1);
-                                    }}
-                                />
-                                <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                                    <span>{formatDisplayCurrency(0, currency)}</span>
-                                    <span>{formatDisplayCurrency(priceCeiling, currency)} max</span>
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
+  const hasActiveFilters =
+    activeCategory !== "all" ||
+    searchQuery ||
+    effectiveMaxPrice !== undefined ||
+    sortBy !== "newest";
 
-                    {/* Product Grid & Pagination */}
-                    <div className="flex-grow">
-                        {loading ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                                {[1, 2, 3, 4, 5, 6].map(i => (
-                                    <div key={i} className="h-96 rounded-3xl bg-foreground/5 animate-pulse border border-border" />
-                                ))}
-                            </div>
-                        ) : loadError ? (
-                            <div role="alert" className="rounded-3xl border border-red-500/30 bg-red-500/10 p-8 text-center text-red-400">
-                                Products could not be loaded. Check the Supabase configuration and database connection, then refresh.
-                            </div>
-                        ) : paginatedProducts.length > 0 ? (
-                            <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
-                                    {paginatedProducts.map((product) => (
-                                        <ProductCard key={product.id} product={product} />
-                                    ))}
-                                </div>
+  function clearAll() {
+    handleCategorySelect("all");
+    setSearchQuery("");
+    setMaxPriceFilter(null);
+    setSortBy("newest");
+    setCurrentPage(1);
+  }
 
-                                {/* Lovely Pagination */}
-                                {totalPages > 1 && (
-                                    <div className="flex flex-col items-center gap-10 py-20 border-t border-white/5 mt-20 relative">
-                                        {/* Subtle Glow */}
-                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+  // Sidebar contents — shared between desktop sticky and mobile drawer
+  const renderSidebarContent = () => (
+    <div className="space-y-5">
 
-                                        <div className="flex max-w-full items-center gap-1.5 sm:gap-3">
-                                            <button
-                                                disabled={currentPage === 1}
-                                                onClick={() => {
-                                                    setCurrentPage(1);
-                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                }}
-                                                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full glass-morphism transition-all duration-300 group hover:bg-primary hover:text-black hover:scale-110 active:scale-90 disabled:cursor-not-allowed disabled:opacity-10 sm:flex sm:h-14 sm:w-14"
-                                                title="First Page"
-                                            >
-                                                <ChevronsLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-                                            </button>
-
-                                            <button
-                                                disabled={currentPage === 1}
-                                                onClick={() => {
-                                                    setCurrentPage(prev => prev - 1);
-                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                }}
-                                                className="h-10 w-10 shrink-0 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group sm:h-14 sm:w-14"
-                                                title="Previous Page"
-                                            >
-                                                <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-                                            </button>
-
-                                            <div className="flex min-w-0 gap-1 rounded-full border border-border bg-foreground/5 px-2 py-2 backdrop-blur-md sm:gap-3 sm:px-6">
-                                                {visiblePages.map((page) => (
-                                                    <button
-                                                        key={page}
-                                                        onClick={() => {
-                                                            setCurrentPage(page);
-                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                        }}
-                                                        className={`relative h-8 w-8 shrink-0 rounded-full text-xs font-black transition-all duration-300 group sm:h-10 sm:w-10 ${currentPage === page
-                                                            ? "bg-primary text-primary-foreground scale-110 shadow-lg shadow-primary/20"
-                                                            : "hover:bg-foreground/10 text-foreground/40 hover:text-foreground"
-                                                            }`}
-                                                    >
-                                                        {page}
-                                                        {currentPage === page && (
-                                                            <motion.div
-                                                                layoutId="page-indicator"
-                                                                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-black rounded-full"
-                                                            />
-                                                        )}
-                                                    </button>
-                                                ))}
-                                            </div>
-
-                                            <button
-                                                disabled={currentPage === totalPages}
-                                                onClick={() => {
-                                                    setCurrentPage(prev => prev + 1);
-                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                }}
-                                                className="h-10 w-10 shrink-0 rounded-full glass-morphism flex items-center justify-center disabled:opacity-10 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:scale-110 active:scale-90 transition-all duration-300 group sm:h-14 sm:w-14"
-                                                title="Next Page"
-                                            >
-                                                <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                                            </button>
-
-                                            <button
-                                                disabled={currentPage === totalPages}
-                                                onClick={() => {
-                                                    setCurrentPage(totalPages);
-                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                }}
-                                                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full glass-morphism transition-all duration-300 group hover:bg-primary hover:text-black hover:scale-110 active:scale-90 disabled:cursor-not-allowed disabled:opacity-10 sm:flex sm:h-14 sm:w-14"
-                                                title="Last Page"
-                                            >
-                                                <ChevronsRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                                            </button>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40">
-                                                Page {currentPage} of {totalPages}
-                                            </span>
-                                            <div className="w-8 h-[1px] bg-foreground/10" />
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                                                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, processedProducts.length)}-{Math.min(currentPage * itemsPerPage, processedProducts.length)} of {processedProducts.length} Results
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            <div className="text-center py-32 glass-card rounded-[3rem]">
-                                <h3 className="text-3xl font-black mb-4 uppercase italic">No products found</h3>
-                                <p className="text-foreground/40 font-medium">Try adjusting your filters to find your perfect match.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+      {/* Search */}
+      <div className="space-y-1.5">
+        <p className="px-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Search</p>
+        <div className="relative">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            aria-label="Search products"
+            placeholder="Search product names…"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+            className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-9 text-sm font-medium outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/15"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
-    );
+      </div>
+
+      {/* Sort */}
+      <div className="space-y-1.5">
+        <p className="px-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Sort by</p>
+        <div className="relative">
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              if (!isProductSort(e.target.value)) return;
+              setSortBy(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-11 w-full appearance-none rounded-xl border border-input bg-background px-3.5 pr-9 text-sm font-semibold outline-none transition hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/15 [color-scheme:light] dark:[color-scheme:dark]"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-border" />
+
+      {/* Categories */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-0.5">
+          <Tag size={13} className="text-muted-foreground" />
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Categories</p>
+        </div>
+        <div className="space-y-1">
+          {/* All */}
+          <button
+            type="button"
+            onClick={() => handleCategorySelect("all")}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold transition
+              ${activeCategory === "all"
+                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+          >
+            All Collections
+            {activeCategory === "all" && (
+              <span className="rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                {totalCount}
+              </span>
+            )}
+          </button>
+
+          {/* Per category */}
+          {categories.map((cat) => {
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleCategorySelect(cat.slug)}
+                className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold transition
+                  ${activeCategory === cat.slug
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+              >
+                {cat.name}
+                <span className={`size-1.5 rounded-full ${activeCategory === cat.slug ? "bg-primary-foreground" : "bg-border"}`} />
+              </button>
+            );
+          })}
+          {categoriesError && (
+            <p role="alert" className="px-3.5 py-2 text-xs text-destructive">
+              Categories couldn&apos;t be loaded.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-border" />
+
+      {/* Price range */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-0.5">
+          <Banknote size={13} className="text-muted-foreground" />
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Price range</p>
+        </div>
+
+        {/* Currency quick-select pills */}
+        <div className="flex flex-wrap gap-1.5">
+          {CURRENCY_OPTIONS.map((opt) => (
+            <span
+              key={opt.value}
+              title={opt.label}
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition
+                ${currency === opt.value
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground"}`}
+            >
+              {opt.symbol}
+            </span>
+          ))}
+          <span className="ml-auto text-[10px] text-muted-foreground self-center">via CurrencySwitcher →</span>
+        </div>
+        <CurrencySwitcher />
+
+        {/* Range slider */}
+        <div className="space-y-2 pt-1">
+          <input
+            type="range"
+            min={0}
+            max={priceCeiling}
+            step={50}
+            value={maxPriceFilter ?? priceCeiling}
+            onChange={(e) => { setMaxPriceFilter(Number(e.target.value)); setCurrentPage(1); }}
+            className="w-full cursor-pointer accent-primary"
+            aria-label="Maximum price"
+          />
+          <div className="flex items-center justify-between">
+            <span className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold tabular-nums">
+              {formatDisplayCurrency(toDisplay(0, currency), currency)}
+            </span>
+            <span className="rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-bold tabular-nums text-primary">
+              ≤ {formatDisplayCurrency(toDisplay(maxPriceFilter ?? priceCeiling, currency), currency)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Clear filters */}
+      {hasActiveFilters && (
+        <button
+          type="button"
+          onClick={clearAll}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/[0.06] py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/10"
+        >
+          <X size={14} /> Clear all filters
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen py-28 sm:py-32">
+      <div className="container mx-auto px-4">
+
+        {/* Header */}
+        <div className="mb-10 flex flex-col">
+          <h1 className="text-5xl font-black tracking-tighter uppercase italic md:text-8xl">
+            PREMIUM <span className="text-primary italic">CATALOG</span>
+          </h1>
+          <p className="mt-3 max-w-lg font-medium text-foreground/60">
+            Engineered for performance, designed for the streets.
+          </p>
+        </div>
+
+        {/* Mobile filter bar */}
+        <div className="mb-5 flex items-center gap-3 lg:hidden">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              aria-label="Search product names"
+              placeholder="Search product names…"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="flex h-11 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition hover:border-primary/40"
+          >
+            <SlidersHorizontal size={15} />
+            Filters
+            {hasActiveFilters && <span className="size-2 rounded-full bg-primary" />}
+          </button>
+        </div>
+
+        {/* Mobile drawer */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+            <div className="absolute inset-y-0 left-0 w-80 max-w-[90vw] overflow-y-auto bg-card p-5 shadow-2xl">
+              <div className="mb-5 flex items-center justify-between">
+                <p className="font-bold">Filters</p>
+                <button type="button" onClick={() => setSidebarOpen(false)} className="rounded-lg p-1.5 hover:bg-secondary">
+                  <X size={18} />
+                </button>
+              </div>
+              {renderSidebarContent()}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-8 lg:flex-row lg:gap-8 xl:gap-10">
+
+          {/* Desktop sidebar */}
+          <aside className="hidden w-64 shrink-0 self-start lg:sticky lg:top-28 lg:block xl:w-72">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={15} className="text-primary" />
+                  <p className="font-bold">Filters</p>
+                </div>
+                {hasActiveFilters && (
+                  <button type="button" onClick={clearAll} className="text-xs font-semibold text-primary hover:underline">
+                    Clear all
+                  </button>
+                )}
+              </div>
+              {renderSidebarContent()}
+            </div>
+          </aside>
+
+          {/* Product grid */}
+          <div className="min-w-0 flex-1">
+
+            {/* Results bar */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-muted-foreground">
+                {loading ? "Loading…" : (
+                  <>
+                    <span className="font-black text-foreground">{totalCount}</span> product{totalCount !== 1 ? "s" : ""}
+                    {activeCategory !== "all" && (
+                      <> in <span className="text-primary capitalize">{categories.find((c) => c.slug === activeCategory)?.name ?? activeCategory}</span></>
+                    )}
+                  </>
+                )}
+              </p>
+              {/* Active filter chips */}
+              <div className="flex flex-wrap gap-2">
+                {activeCategory !== "all" && (
+                  <span className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {categories.find((c) => c.slug === activeCategory)?.name ?? activeCategory}
+                    <button type="button" onClick={() => handleCategorySelect("all")} className="hover:text-destructive"><X size={11} /></button>
+                  </span>
+                )}
+                {searchQuery && (
+                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    &quot;{searchQuery}&quot;
+                    <button type="button" onClick={() => setSearchQuery("")} className="hover:text-destructive"><X size={11} /></button>
+                  </span>
+                )}
+                {effectiveMaxPrice !== undefined && (
+                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    ≤ {formatDisplayCurrency(toDisplay(effectiveMaxPrice, currency), currency)}
+                    <button type="button" onClick={() => { setMaxPriceFilter(null); setCurrentPage(1); }} className="hover:text-destructive"><X size={11} /></button>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="h-96 animate-pulse rounded-3xl border border-border bg-secondary/40" />
+                ))}
+              </div>
+            ) : loadError ? (
+              <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/[0.06] p-8 text-center text-sm text-destructive">
+                Products could not be loaded. Check your Supabase configuration and refresh.
+              </div>
+            ) : paginatedProducts.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 mb-14">
+                  {paginatedProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col items-center gap-6 border-t border-border pt-12">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        disabled={currentPage === 1}
+                        onClick={() => { setCurrentPage(1); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-30 sm:flex"
+                      >
+                        <ChevronsLeft size={18} />
+                      </button>
+                      <button
+                        disabled={currentPage === 1}
+                        onClick={() => { setCurrentPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-30"
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {visiblePages.map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition
+                              ${currentPage === page
+                                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                                : "border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => { setCurrentPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-30"
+                      >
+                        <ArrowRight size={16} />
+                      </button>
+                      <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => { setCurrentPage(totalPages); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-30 sm:flex"
+                      >
+                        <ChevronsRight size={18} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Page <span className="font-bold text-foreground">{currentPage}</span> of {totalPages} ·{" "}
+                      Showing                       {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)}–{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center rounded-2xl border border-border bg-card py-20 text-center">
+                <p className="text-2xl font-black uppercase italic">No products found</p>
+                <p className="mt-2 text-sm text-muted-foreground">Try adjusting your filters.</p>
+                {hasActiveFilters && (
+                  <button type="button" onClick={clearAll} className="mt-5 text-sm font-semibold text-primary hover:underline">
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ShopPage;

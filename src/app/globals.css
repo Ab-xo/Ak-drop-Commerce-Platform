@@ -10,6 +10,8 @@
   --color-secondary-foreground: hsl(var(--secondary-foreground));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-destructive: hsl(var(--destructive));
@@ -38,6 +40,8 @@
 :root {
   --background: 210 20% 98.5%;
   --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
   --primary: 263.4 70% 50.4%;
   --primary-foreground: 210 40% 98%;
   --secondary: 210 20% 95%;
@@ -61,12 +65,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: 240 10% 3.9%; --foreground: 0 0% 98%; --secondary: 240 3.7% 15.9%; --secondary-foreground: 0 0% 98%; --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%; --accent: 240 3.7% 15.9%; --accent-foreground: 0 0% 98%; --destructive: 0 62.8% 30.6%; --destructive-foreground: 0 0% 98%; --border: 240 3.7% 15.9%; --input: 240 3.7% 15.9%; --hero-surface: 240 10% 6%; --glass-bg: 0 0% 3% / 0.6; --glass-border: 0 0% 100% / 0.1; --glass-glow: 263.4 70% 50.4% / 0.1;
+    --background: 240 10% 3.9%; --foreground: 0 0% 98%; --card: 240 10% 5.9%; --card-foreground: 0 0% 98%; --secondary: 240 3.7% 15.9%; --secondary-foreground: 0 0% 98%; --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%; --accent: 240 3.7% 15.9%; --accent-foreground: 0 0% 98%; --destructive: 0 62.8% 30.6%; --destructive-foreground: 0 0% 98%; --border: 240 3.7% 15.9%; --input: 240 3.7% 15.9%; --hero-surface: 240 10% 6%; --glass-bg: 0 0% 3% / 0.6; --glass-border: 0 0% 100% / 0.1; --glass-glow: 263.4 70% 50.4% / 0.1;
   }
 }
 
-.light { --background: 210 20% 98.5%; --foreground: 240 10% 3.9%; --primary: 263.4 70% 50.4%; --primary-foreground: 210 40% 98%; --secondary: 210 20% 95%; --secondary-foreground: 240 5.9% 10%; --muted: 210 20% 95%; --muted-foreground: 240 3.8% 46.1%; --accent: 263.4 70% 50.4% / 0.05; --accent-foreground: 240 5.9% 10%; --destructive: 0 84.2% 60.2%; --destructive-foreground: 0 0% 98%; --border: 210 20% 90%; --input: 210 20% 90%; --ring: 263.4 70% 50.4%; --hero-surface: 210 20% 96%; --glass-bg: 0 0% 100% / 0.7; --glass-border: 210 20% 0% / 0.08; --glass-glow: 263.4 70% 50.4% / 0.05; --card-border: 263.4 70% 50.4% / 0.1; }
-.dark { --background: 240 10% 3.9%; --foreground: 0 0% 98%; --primary: 263.4 70% 50.4%; --primary-foreground: 210 40% 98%; --secondary: 240 3.7% 15.9%; --secondary-foreground: 0 0% 98%; --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%; --accent: 240 3.7% 15.9%; --accent-foreground: 0 0% 98%; --destructive: 0 62.8% 30.6%; --destructive-foreground: 0 0% 98%; --border: 240 3.7% 15.9%; --input: 240 3.7% 15.9%; --ring: 263.4 70% 50.4%; --hero-surface: 240 10% 6%; --glass-bg: 0 0% 3% / 0.6; --glass-border: 0 0% 100% / 0.1; --glass-glow: 263.4 70% 50.4% / 0.1; --card-border: 263.4 70% 50.4% / 0.15; }
+.light { --background: 210 20% 98.5%; --foreground: 240 10% 3.9%; --card: 0 0% 100%; --card-foreground: 240 10% 3.9%; --primary: 263.4 70% 50.4%; --primary-foreground: 210 40% 98%; --secondary: 210 20% 95%; --secondary-foreground: 240 5.9% 10%; --muted: 210 20% 95%; --muted-foreground: 240 3.8% 46.1%; --accent: 263.4 70% 50.4% / 0.05; --accent-foreground: 240 5.9% 10%; --destructive: 0 84.2% 60.2%; --destructive-foreground: 0 0% 98%; --border: 210 20% 90%; --input: 210 20% 90%; --ring: 263.4 70% 50.4%; --hero-surface: 210 20% 96%; --glass-bg: 0 0% 100% / 0.7; --glass-border: 210 20% 0% / 0.08; --glass-glow: 263.4 70% 50.4% / 0.05; --card-border: 263.4 70% 50.4% / 0.1; }
+.dark { --background: 240 10% 3.9%; --foreground: 0 0% 98%; --card: 240 10% 5.9%; --card-foreground: 0 0% 98%; --primary: 263.4 70% 50.4%; --primary-foreground: 210 40% 98%; --secondary: 240 3.7% 15.9%; --secondary-foreground: 0 0% 98%; --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%; --accent: 240 3.7% 15.9%; --accent-foreground: 0 0% 98%; --destructive: 0 62.8% 30.6%; --destructive-foreground: 0 0% 98%; --border: 240 3.7% 15.9%; --input: 240 3.7% 15.9%; --ring: 263.4 70% 50.4%; --hero-surface: 240 10% 6%; --glass-bg: 0 0% 3% / 0.6; --glass-border: 0 0% 100% / 0.1; --glass-glow: 263.4 70% 50.4% / 0.1; --card-border: 263.4 70% 50.4% / 0.15; }
 
 @layer base {
   * { @apply border-border; }

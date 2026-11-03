@@ -118,9 +118,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   const selectedImageIndex = gallerySelection.productId === id ? gallerySelection.index : 0;
   const isZoomed = zoomState.productId === id && zoomState.zoomed;
-  const images = [product.main_image, selectedVariant?.image_url, ...(product.images ?? [])]
-    .filter((image, index, allImages) =>
-      typeof image === "string" && image.trim().length > 0 && allImages.indexOf(image) === index
+  const images = [product.main_image, ...(product.images ?? [])]
+    .filter((image, index, all) =>
+      typeof image === 'string' && image.trim().length > 0 && all.indexOf(image) === index
     )
     .slice(0, 4);
   const selectedImage = images[selectedImageIndex] || product.main_image;
@@ -128,50 +128,22 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const selectedPrice = selectedVariant ? getVariantPrice(product.price, selectedVariant) : product.price;
 
   return (
-    <div className="min-h-screen py-32">
+    <div className="min-h-screen py-28 sm:py-32">
       <div className="container mx-auto px-4">
         <Link
           href="/shop"
-          className="mb-12 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground/40 hover:text-primary"
+          className="mb-10 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground/40 hover:text-primary"
         >
           <ArrowLeft size={16} /> Back to Shop
         </Link>
-        <div className="grid grid-cols-1 gap-16 lg:grid-cols-2">
-          <div className="space-y-6">
-            <motion.div
-              key={selectedImageIndex}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              onMouseMove={handleMouseMove}
-              className="group relative aspect-square max-h-[600px] overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-secondary/80 via-secondary/40 to-background shadow-2xl shadow-black/10 sm:rounded-[2.5rem]"
-            >
-              <Image
-                src={getProductImageUrl(selectedImage)}
-                alt={`${product.name}, product view ${selectedImageIndex + 1}`}
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className={`object-contain p-5 transition-transform duration-300 sm:p-8 ${isHovered || isZoomed ? "scale-150" : "scale-100"}`}
-                style={{ transformOrigin: `${mousePos.x}% ${mousePos.y}%` }}
-              />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-background/75 to-transparent px-5 pb-4 pt-12">
-                <span className="rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground backdrop-blur">
-                  View {String(selectedImageIndex + 1).padStart(2, "0")} / 04
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setZoomState({ productId: id, zoomed: !isZoomed })}
-                aria-label={isZoomed ? "Zoom out of product image" : "Zoom in on product image"}
-                aria-pressed={isZoomed}
-                className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full border border-border/70 bg-background/85 text-foreground shadow-lg backdrop-blur transition hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                {isZoomed ? <ZoomOut size={18} /> : <ZoomIn size={18} />}
-              </button>
-            </motion.div>
-            <div className="grid grid-cols-4 gap-3 sm:gap-4" aria-label="Product image gallery">
+
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 xl:gap-16">
+
+          {/* ── Gallery column ── */}
+          <div className="flex gap-3 sm:gap-4">
+
+            {/* Vertical thumbnail strip */}
+            <div className="flex shrink-0 flex-col gap-2.5 sm:gap-3" aria-label="Product image gallery">
               {gallerySlots.map((image, index) => image ? (
                 <button
                   type="button"
@@ -182,30 +154,113 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   }}
                   aria-label={`Show image ${index + 1} of ${product.name}`}
                   aria-pressed={selectedImageIndex === index}
-                  className={`group/thumb relative aspect-square overflow-hidden rounded-2xl border bg-secondary/40 transition ${selectedImageIndex === index ? "border-primary ring-2 ring-primary/20" : "border-border opacity-75 hover:border-primary/50 hover:opacity-100"}`}
+                  className={`group/thumb relative size-16 shrink-0 overflow-hidden rounded-xl border-2 transition sm:size-20
+                    ${selectedImageIndex === index
+                      ? "border-primary shadow-lg shadow-primary/20"
+                      : "border-border/40 hover:border-primary/40"}`}
                 >
                   <Image
                     src={getProductImageUrl(image)}
                     alt={`${product.name} thumbnail ${index + 1}`}
                     fill
-                    sizes="(max-width: 640px) 22vw, 120px"
-                    className="object-contain p-1.5 transition-transform duration-300 group-hover/thumb:scale-105 sm:p-2"
+                    sizes="80px"
+                    className="object-cover object-top transition-transform duration-300 group-hover/thumb:scale-105"
                   />
-                  <span className="absolute bottom-1.5 right-1.5 rounded-md bg-background/85 px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground backdrop-blur">
-                    0{index + 1}
-                  </span>
+                  {/* Active indicator line */}
+                  {selectedImageIndex === index && (
+                    <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" />
+                  )}
                 </button>
               ) : (
                 <div
-                  key={`missing-view-${index}`}
-                  role="img"
-                  aria-label={`Additional product view ${index + 1} is not available yet`}
-                  className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-secondary/20 px-1 text-center text-muted-foreground/70"
+                  key={`missing-${index}`}
+                  className="flex size-16 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/40 bg-secondary/20 text-muted-foreground/40 sm:size-20"
                 >
-                  <ImageIcon size={18} strokeWidth={1.5} />
-                  <span className="text-[8px] font-semibold leading-tight sm:text-[10px]">More views<br />coming soon</span>
+                  <ImageIcon size={14} strokeWidth={1.5} />
                 </div>
               ))}
+            </div>
+
+            {/* Main image — full bleed, covers the entire area */}
+            <div className="min-w-0 flex-1">
+              <motion.div
+                key={`${id}-${selectedImageIndex}`}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.25 }}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                onMouseMove={handleMouseMove}
+                className="group relative w-full overflow-hidden rounded-2xl bg-secondary shadow-2xl shadow-black/15 sm:rounded-3xl"
+                style={{ aspectRatio: '1/1' }}
+              >
+                <Image
+                  src={getProductImageUrl(selectedImage)}
+                  alt={`${product.name}, view ${selectedImageIndex + 1}`}
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 85vw, 45vw"
+                  className={`object-cover object-top transition-transform duration-500
+                    ${isHovered || isZoomed ? "scale-[1.1]" : "scale-100"}`}
+                  style={{ transformOrigin: `${mousePos.x}% ${mousePos.y}%` }}
+                />
+
+                {/* gradient overlay */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent" />
+
+                {/* View counter badge */}
+                <div className="absolute bottom-4 left-4">
+                  <span className="rounded-full border border-white/20 bg-black/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur">
+                    {String(selectedImageIndex + 1).padStart(2, "0")} / {String(images.length).padStart(2, "0")}
+                  </span>
+                </div>
+
+                {/* Zoom button */}
+                <button
+                  type="button"
+                  onClick={() => setZoomState({ productId: id, zoomed: !isZoomed })}
+                  aria-label={isZoomed ? "Zoom out" : "Zoom in"}
+                  aria-pressed={isZoomed}
+                  className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {isZoomed ? <ZoomOut size={16} /> : <ZoomIn size={16} />}
+                </button>
+
+                {/* Navigation arrows for mobile */}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setGallerySelection({ productId: id, index: (selectedImageIndex - 1 + images.length) % images.length })}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70 sm:hidden"
+                      aria-label="Previous image"
+                    >
+                      <ArrowLeft size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGallerySelection({ productId: id, index: (selectedImageIndex + 1) % images.length })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70 sm:hidden"
+                      aria-label="Next image"
+                    >
+                      <ArrowLeft size={15} className="rotate-180" />
+                    </button>
+                  </>
+                )}
+              </motion.div>
+
+              {/* Dot indicators for mobile */}
+              <div className="mt-3 flex justify-center gap-1.5 sm:hidden">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setGallerySelection({ productId: id, index: i })}
+                    className={`h-1.5 rounded-full transition-all ${i === selectedImageIndex ? 'w-5 bg-primary' : 'w-1.5 bg-border'}`}
+                    aria-label={`Go to image ${i + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 

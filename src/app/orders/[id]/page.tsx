@@ -60,20 +60,69 @@ export default async function OrderDetailsPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  if (userError && userError.message !== 'Auth session missing!') {
-    console.error('Order detail authentication error:', userError.message);
-    throw new Error('Unable to verify your sign-in.');
+  let user = null;
+  try {
+    const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      // 'Auth session missing!' means the user is simply not signed in — redirect normally.
+      // 'fetch failed' / network errors mean Supabase was transiently unreachable during SSR
+      // (common right after a Stripe redirect). Treat it the same as no session — redirect
+      // to sign-in so the user can retry rather than showing a 500 error page.
+      const isNetworkError =
+        userError.message === 'Auth session missing!' ||
+        userError.message?.toLowerCase().includes('fetch failed') ||
+        userError.message?.toLowerCase().includes('network') ||
+        userError.message?.toLowerCase().includes('enotfound') ||
+        userError.message?.toLowerCase().includes('econnrefused');
+
+      if (!isNetworkError) {
+        console.error('Order detail authentication error:', userError.message);
+        throw new Error('Unable to verify your sign-in.');
+      }
+    } else {
+      user = authUser;
+    }
+  } catch (error) {
+    // Catch any uncaught fetch/network throws from the Supabase client itself
+    const message = error instanceof Error ? error.message : String(error);
+    const isNetworkThrow =
+      message?.toLowerCase().includes('fetch failed') ||
+      message?.toLowerCase().includes('network') ||
+      message?.toLowerCase().includes('enotfound');
+    if (!isNetworkThrow) throw error;
+    console.error('Order detail authentication network error (redirecting to sign-in):', message);
   }
+
   if (!user) redirect(`/auth/signin?redirect=/orders/${encodeURIComponent(id)}`);
 
-  const { data, error } = await supabase
+  const fullSelect = 'id, order_number, status, total_amount, subtotal_amount, delivery_fee_amount, total_is_final, currency, shipping_address, payment_method, payment_status, created_at, order_items(id, product_id, product_name, product_slug, product_image, product_sku, quantity, unit_price, total_price, size, color, variant_attributes), payments(amount, currency, status)';
+  const fallbackSelect = 'id, order_number, status, total_amount, subtotal_amount, delivery_fee_amount, total_is_final, currency, shipping_address, payment_method, payment_status, created_at, order_items(id, product_id, product_name, product_slug, product_image, product_sku, quantity, unit_price, total_price, size, color), payments(amount, currency, status)';
+
+  let rawData = await supabase
     .from('orders')
-    .select('id, order_number, status, total_amount, subtotal_amount, delivery_fee_amount, total_is_final, currency, shipping_address, payment_method, payment_status, created_at, order_items(id, product_id, product_name, product_slug, product_image, product_sku, quantity, unit_price, total_price, size, color, variant_attributes), payments(amount, currency, status)')
+    .select(fullSelect)
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
+
+  // Fallback: if variant_attributes column doesn't exist yet (ALTER TABLE migration pending)
+  if (
+    rawData.error &&
+    (rawData.error.code === '42703' ||
+      rawData.error.code === 'PGRST204' ||
+      rawData.error.message?.includes('variant_attributes'))
+  ) {
+    rawData = await supabase
+      .from('orders')
+      .select(fallbackSelect)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+  }
+
+  const { data, error } = rawData;
 
   if (error) {
     console.error('Order detail lookup error:', error.message);
