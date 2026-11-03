@@ -190,6 +190,15 @@ WHERE lower(email) = lower('STAFF_EMAIL_HERE')
   AND raw_app_meta_data->>'role' = 'admin';
 ```
 
+Alternatively, run `node scripts/create-admin.mjs` to grant the role to an
+existing `ADMIN_EMAIL` or create a new staff account. Set `ADMIN_EMAIL` and,
+optionally, `ADMIN_NAME` in `.env.local` first. For a new account, the helper
+requests a password through a masked interactive terminal prompt and requires
+at least 16 characters; it never prints or stores that password. For an
+existing account, it changes only the server-managed admin role and does not
+reset the password. Do not pass passwords as command-line arguments or add
+them to environment files or source control.
+
 Never use editable `user_metadata` or a client-side flag for staff
 authorization. The dashboard summarizes the live catalog, recent orders,
 customer count, low-stock products, and galleries that still need images. The
